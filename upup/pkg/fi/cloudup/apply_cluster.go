@@ -48,6 +48,7 @@ import (
 	"k8s.io/kops/pkg/templates"
 	"k8s.io/kops/upup/models"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awstasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
@@ -411,7 +412,9 @@ func (c *ApplyClusterCmd) Run() error {
 			}
 			aliCloud := cloud.(aliup.ALICloud)
 			region = aliCloud.Region()
-			l.AddTypes(map[string]interface{}{})
+			l.AddTypes(map[string]interface{}{
+				"Disk": &alitasks.Disk{},
+			})
 		}
 
 	case kops.CloudProviderVSphere:
