@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -138,8 +138,9 @@ func (p *OSSPath) WriteFile(data []byte, acl ACL) error {
 		contType := "application/octet-stream"
 
 		var perm oss.ACL
+		var ok bool
 		if acl != nil {
-			perm, ok := acl.(*oss.ACL)
+			perm, ok = acl.(oss.ACL)
 			if !ok {
 				return true, fmt.Errorf("write to %s with ACL of unexpected type %T", p, acl)
 			}
