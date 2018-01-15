@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang/glog"
+
+	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
 	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
@@ -30,12 +33,19 @@ import (
 )
 
 const TagClusterName = "KubernetesCluster"
+const TagNameRolePrefix = "k8s.io/role/"
+const TagNameEtcdClusterPrefix = "k8s.io/etcd/"
 
 type ALICloud interface {
 	fi.Cloud
 
 	EcsClient() *ecs.Client
 	Region() string
+	AddClusterTags(tags map[string]string)
+	GetTags(resourceId string, resourceType string) (map[string]string, error)
+	CreateTags(resourceId string, resourceType string, tags map[string]string) error
+	RemoveTags(resourceId string, resourceType string, tags map[string]string) error
+	GetClusterTags() map[string]string
 }
 
 type aliCloudImplementation struct {
@@ -98,4 +108,94 @@ func (c *aliCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 
 func (c *aliCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
 	return nil, fmt.Errorf("GetCloudGroups not implemented on aliCloud")
+}
+
+// GetTags will get the specified resource's tags.
+func (c *aliCloudImplementation) GetTags(resourceId string, resourceType string) (map[string]string, error) {
+	if resourceId == "" {
+		return nil, fmt.Errorf("resourceId not provided to GetTags")
+	}
+	tags := map[string]string{}
+
+	request := &ecs.DescribeTagsArgs{
+		RegionId:     common.Region(c.Region()),
+		ResourceType: ecs.TagResourceType(resourceType), //image, instance, snapshot or disk
+		ResourceId:   resourceId,
+	}
+	responseTags, _, err := c.EcsClient().DescribeTags(request)
+	if err != nil {
+		return tags, fmt.Errorf("error getting tags on %v: %v", resourceId, err)
+	}
+
+	for _, tag := range responseTags {
+		tags[tag.TagKey] = tag.TagValue
+	}
+	return tags, nil
+
+}
+
+// AddClusterTags will add ClusterTags to resources (in ALI, only disk, instance, snapshot or image can be tagged )
+func (c *aliCloudImplementation) AddClusterTags(tags map[string]string) {
+	for k, v := range c.tags {
+		tags[k] = v
+	}
+}
+
+// CreateTags will add tags to the specified resource.
+func (c *aliCloudImplementation) CreateTags(resourceId string, resourceType string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	} else if len(tags) > 10 {
+		glog.V(4).Info("The number of specified resource's tags exceeds 10, resourceId:%q", resourceId)
+	}
+	if resourceId == "" {
+		return fmt.Errorf("resourceId not provided to CreateTags")
+	}
+	if resourceType == "" {
+		return fmt.Errorf("resourceType not provided to CreateTags")
+	}
+
+	request := &ecs.AddTagsArgs{
+		ResourceId:   resourceId,
+		ResourceType: ecs.TagResourceType(resourceType), //image, instance, snapshot or disk
+		RegionId:     common.Region(c.Region()),
+		Tag:          tags,
+	}
+	err := c.EcsClient().AddTags(request)
+	if err != nil {
+		return fmt.Errorf("error creating tags on %v: %v", resourceId, err)
+	}
+
+	return nil
+}
+
+// RemoveTags will remove tags from the specified resource.
+func (c *aliCloudImplementation) RemoveTags(resourceId string, resourceType string, tags map[string]string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	if resourceId == "" {
+		return fmt.Errorf("resourceId not provided to RemoveTags")
+	}
+	if resourceType == "" {
+		return fmt.Errorf("resourceType not provided to RemoveTags")
+	}
+
+	request := &ecs.RemoveTagsArgs{
+		ResourceId:   resourceId,
+		ResourceType: ecs.TagResourceType(resourceType), //image, instance, snapshot or disk
+		RegionId:     common.Region(c.Region()),
+		Tag:          tags,
+	}
+	err := c.EcsClient().RemoveTags(request)
+	if err != nil {
+		return fmt.Errorf("error removing tags on %v: %v", resourceId, err)
+	}
+
+	return nil
+}
+
+// GetClusterTags will get the ClusterTags
+func (c *aliCloudImplementation) GetClusterTags() map[string]string {
+	return c.tags
 }
