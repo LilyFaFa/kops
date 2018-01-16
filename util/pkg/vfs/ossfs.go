@@ -317,7 +317,7 @@ func (p *OSSPath) listPath(opt listOption) ([]Path, error) {
 				if comPrefLen != 0 {
 					lastComPref := resp.CommonPrefixes[comPrefLen-1]
 					if strings.Compare(lastComPref, opt.marker) == 1 {
-						opt.marker = resp.CommonPrefixes[comPrefLen-1]
+						opt.marker = lastComPref
 					}
 				}
 			} else {
