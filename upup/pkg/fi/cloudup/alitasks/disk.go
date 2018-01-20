@@ -34,7 +34,7 @@ const ResourceType = "disk"
 
 type Disk struct {
 	Lifecycle    *fi.Lifecycle
-	DiskName     *string
+	Name         *string
 	DiskId       *string
 	ZoneId       *string
 	DiskCategory *string
@@ -57,22 +57,22 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 		RegionId: common.Region(cloud.Region()),
 		ZoneId:   fi.StringValue(d.ZoneId),
 		Tag:      clusterTags,
-		Name:     fi.StringValue(d.DiskName),
+		Name:     fi.StringValue(d.Name),
 	}
 	responseDisks, _, err := cloud.EcsClient().DescribeDisks(request)
 	if err != nil {
 		return nil, fmt.Errorf("error finding Disks: %v", err)
 	}
-	// Don't exist disk with specified ClusterTags or DiskName.
+	// Don't exist disk with specified ClusterTags or Name.
 	if len(responseDisks) == 0 {
 		return nil, nil
 	}
 	if len(responseDisks) > 1 {
-		glog.V(4).Info("The number of specified disk whith the same name and ClusterTags exceeds 1, diskName:%q", *d.DiskName)
+		glog.V(4).Info("The number of specified disk whith the same name and ClusterTags exceeds 1, diskName:%q", *d.Name)
 	}
 
 	actual := &Disk{}
-	actual.DiskName = &responseDisks[0].DiskName
+	actual.Name = fi.String(responseDisks[0].DiskName)
 	actual.DiskCategory = fi.String(string(responseDisks[0].Category))
 	actual.ZoneId = fi.String(responseDisks[0].ZoneId)
 	actual.SizeGB = fi.Int(responseDisks[0].Size)
@@ -100,8 +100,8 @@ func (_ *Disk) CheckChanges(a, e, changes *Disk) error {
 		if e.ZoneId == nil {
 			return fi.RequiredField("ZoneId")
 		}
-		if e.DiskName == nil {
-			return fi.RequiredField("DiskName")
+		if e.Name == nil {
+			return fi.RequiredField("Name")
 		}
 	} else {
 		if changes.DiskId != nil {
@@ -125,6 +125,7 @@ func (_ *Disk) CheckChanges(a, e, changes *Disk) error {
 func (_ *Disk) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Disk) error {
 	if a == nil {
 		request := &ecs.CreateDiskArgs{
+			DiskName:     fi.StringValue(e.Name),
 			RegionId:     common.Region(t.Cloud.Region()),
 			ZoneId:       fi.StringValue(e.ZoneId),
 			Encrypted:    fi.BoolValue(e.Encrypted),
@@ -179,11 +180,11 @@ type terraformDisk struct {
 
 func (_ *Disk) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Disk) error {
 	tf := &terraformDisk{
-		DiskName:     e.DiskName,
+		DiskName:     e.Name,
 		DiskCategory: e.DiskCategory,
 		SizeGB:       e.SizeGB,
 		Zone:         e.ZoneId,
 		Tags:         e.Tags,
 	}
-	return t.RenderResource("alicloud_disk", *e.DiskName, tf)
+	return t.RenderResource("alicloud_disk", *e.Name, tf)
 }
