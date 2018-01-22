@@ -414,6 +414,7 @@ func (c *ApplyClusterCmd) Run() error {
 			region = aliCloud.Region()
 			l.AddTypes(map[string]interface{}{
 				"Disk": &alitasks.Disk{},
+				"Vpc": &alitasks.VPC{},
 			})
 		}
 
