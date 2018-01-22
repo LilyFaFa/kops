@@ -39,7 +39,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		nodeSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s("nodes." + b.ClusterName()),
 			Lifecycle: b.Lifecycle,
-			VPC:       b.LinkToVPC("vpc." + b.ClusterName()),
+			VPC:       b.LinkToVPC(b.ClusterName()),
 		}
 		c.AddTask(nodeSecurityGroup)
 	}
@@ -50,7 +50,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		masterSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s("masters." + b.ClusterName()),
 			Lifecycle: b.Lifecycle,
-			VPC:       b.LinkToVPC("vpc." + b.ClusterName()),
+			VPC:       b.LinkToVPC(b.ClusterName()),
 		}
 		c.AddTask(masterSecurityGroup)
 	}

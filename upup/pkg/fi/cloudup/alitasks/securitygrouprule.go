@@ -32,6 +32,7 @@ import (
 type SecurityGroupRule struct {
 	Name          *string
 	IpProtocol    *string
+	SourceCidrIp  *string
 	SecurityGroup *SecurityGroup
 	SourceGroup   *SecurityGroup
 	Lifecycle     *fi.Lifecycle
@@ -76,21 +77,31 @@ func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
 	// Find securityGroupRule with specified ipProtocol, securityGroupId,SourceGroupId
 	// TODO: Should we support  modify PortRange?
 	for _, securityGroupRule := range describeResponse.Permissions.Permission {
-		if s.SourceGroup != nil && s.SourceGroup.SecurityGroupId != nil {
-			if securityGroupRule.SourceGroupId != fi.StringValue(s.SourceGroup.SecurityGroupId) {
-				continue
-			}
-			if securityGroupRule.IpProtocol != ecs.IpProtocol(fi.StringValue(s.IpProtocol)) {
-				continue
-			}
-			actual.PortRange = fi.String(securityGroupRule.PortRange)
-			// Ignore "system" fields
-			actual.Name = s.Name
-			actual.SecurityGroup = s.SecurityGroup
-			actual.Lifecycle = s.Lifecycle
-			actual.In = s.In
-			return actual, nil
+
+		if securityGroupRule.IpProtocol != ecs.IpProtocol(fi.StringValue(s.IpProtocol)) {
+			continue
 		}
+		if s.SourceGroup != nil && securityGroupRule.SourceGroupId != fi.StringValue(s.SourceGroup.SecurityGroupId) {
+			continue
+		}
+		if s.PortRange != nil && securityGroupRule.PortRange != fi.StringValue(s.PortRange) {
+			continue
+		}
+		if s.SourceCidrIp != nil && securityGroupRule.SourceCidrIp != fi.StringValue(s.SourceCidrIp) {
+			continue
+		}
+
+		actual.PortRange = fi.String(securityGroupRule.PortRange)
+		actual.SourceCidrIp = fi.String(securityGroupRule.SourceCidrIp)
+		actual.IpProtocol = fi.String(string(securityGroupRule.IpProtocol))
+		// Ignore "system" fields
+		actual.Name = s.Name
+		actual.SecurityGroup = s.SecurityGroup
+		actual.Lifecycle = s.Lifecycle
+		actual.In = s.In
+		actual.SourceGroup = s.SourceGroup
+		return actual, nil
+
 	}
 
 	return nil, nil
