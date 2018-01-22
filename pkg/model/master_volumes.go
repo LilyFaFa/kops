@@ -271,7 +271,7 @@ func (b *MasterVolumeBuilder) addALIVolume(c *fi.ModelBuilderContext, name strin
 
 	t := &alitasks.Disk{
 		Lifecycle:    b.Lifecycle,
-		DiskName:     s(name),
+		Name:         s(name),
 		ZoneId:       s(zone),
 		SizeGB:       fi.Int(int(volumeSize)),
 		DiskCategory: s(volumeType),

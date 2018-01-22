@@ -25,6 +25,7 @@ import (
 
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
+	slb "github.com/denverdino/aliyungo/slb"
 	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/pkg/apis/kops"
@@ -40,6 +41,7 @@ type ALICloud interface {
 	fi.Cloud
 
 	EcsClient() *ecs.Client
+	SlbClient() *slb.Client
 	Region() string
 	AddClusterTags(tags map[string]string)
 	GetTags(resourceId string, resourceType string) (map[string]string, error)
@@ -50,6 +52,7 @@ type ALICloud interface {
 
 type aliCloudImplementation struct {
 	ecsClient *ecs.Client
+	slbClient *slb.Client
 	region    string
 	tags      map[string]string
 }
@@ -80,6 +83,10 @@ func NewALICloud(region string, tags map[string]string) (ALICloud, error) {
 
 func (c *aliCloudImplementation) EcsClient() *ecs.Client {
 	return c.ecsClient
+}
+
+func (c *aliCloudImplementation) SlbClient() *slb.Client {
+	return c.slbClient
 }
 
 func (c *aliCloudImplementation) Region() string {
