@@ -29,3 +29,8 @@ type ALIModelContext struct {
 func (c *ALIModelContext) LinkToVPC(name string) *alitasks.VPC {
 	return &alitasks.VPC{Name: s(name)}
 }
+
+// LinkToSecurityGroup returns the SecurityGroup with specific name
+func (c *ALIModelContext) LinkToSecurityGroup(name string) *alitasks.SecurityGroup {
+	return &alitasks.SecurityGroup{Name: s(name)}
+}
