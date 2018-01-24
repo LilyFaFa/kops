@@ -63,6 +63,7 @@ func (l *LoadBalancerWhiteList) Find(c *fi.Context) (*LoadBalancerWhiteList, err
 	actual.SourceItems = fi.String(response.SourceItems)
 	// Ignore "system" fields
 	actual.LoadBalancer = l.LoadBalancer
+	actual.LoadBalancerListener = l.LoadBalancerListener
 	actual.Lifecycle = l.Lifecycle
 
 	return actual, nil
@@ -90,10 +91,10 @@ func (_ *LoadBalancerWhiteList) CheckChanges(a, e, changes *LoadBalancerWhiteLis
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancerWhiteList) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerWhiteList) error {
 	if e.LoadBalancer.LoadbalancerId == nil {
-		return fmt.Errorf("error creating LoadBalancerWhiteList, lack of LoadBalnacerId")
+		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of LoadBalnacerId")
 	}
 	if e.LoadBalancerListener.ListenerPort == nil {
-		return fmt.Errorf("error creating LoadBalancerWhiteList, lack of ListenerPort")
+		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of ListenerPort")
 	}
 
 	loadBalancerId := fi.StringValue(e.LoadBalancer.LoadbalancerId)

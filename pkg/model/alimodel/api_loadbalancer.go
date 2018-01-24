@@ -83,14 +83,16 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// TODO: Health check
 	var loadbalancerlistener *alitasks.LoadBalancerListener
 	{
+		loadBalancerListenerStatus := LoadBalancerListenerStatus
+		loadBalancerListenerBandwidth := LoadBalancerListenerBandwidth
 		loadbalancerlistener = &alitasks.LoadBalancerListener{
 			Name:              s("api." + b.ClusterName()),
 			Lifecycle:         b.Lifecycle,
 			LoadBalancer:      loadbalancer,
-			ListenerStatus:    s(LoadBalancerListenerStatus),
+			ListenerStatus:    s(loadBalancerListenerStatus),
 			ListenerPort:      i(443),
 			BackendServerPort: i(443),
-			Bandwidth:         i(LoadBalancerListenerBandwidth),
+			Bandwidth:         i(loadBalancerListenerBandwidth),
 		}
 		c.AddTask(loadbalancerlistener)
 	}
