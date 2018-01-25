@@ -25,6 +25,7 @@ import (
 
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
+	ram "github.com/denverdino/aliyungo/ram"
 	slb "github.com/denverdino/aliyungo/slb"
 	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
@@ -42,6 +43,7 @@ type ALICloud interface {
 
 	EcsClient() *ecs.Client
 	SlbClient() *slb.Client
+	RamClient() *ram.RamClient
 	Region() string
 	AddClusterTags(tags map[string]string)
 	GetTags(resourceId string, resourceType string) (map[string]string, error)
@@ -53,6 +55,7 @@ type ALICloud interface {
 type aliCloudImplementation struct {
 	ecsClient *ecs.Client
 	slbClient *slb.Client
+	ramClient *ram.RamClient
 	region    string
 	tags      map[string]string
 }
@@ -76,6 +79,8 @@ func NewALICloud(region string, tags map[string]string) (ALICloud, error) {
 
 	escclient := ecs.NewClient(accessKeyId, accessKeySecret)
 	c.ecsClient = escclient
+	ramclient := ram.NewClient(accessKeyId, accessKeySecret)
+	c.ramClient = ramclient.(*ram.RamClient)
 	c.tags = tags
 
 	return c, nil
@@ -87,6 +92,10 @@ func (c *aliCloudImplementation) EcsClient() *ecs.Client {
 
 func (c *aliCloudImplementation) SlbClient() *slb.Client {
 	return c.slbClient
+}
+
+func (c *aliCloudImplementation) RamClient() *ram.RamClient {
+	return c.ramClient
 }
 
 func (c *aliCloudImplementation) Region() string {
