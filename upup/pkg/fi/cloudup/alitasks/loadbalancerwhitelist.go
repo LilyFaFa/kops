@@ -42,10 +42,10 @@ func (l *LoadBalancerWhiteList) CompareWithID() *string {
 }
 
 func (l *LoadBalancerWhiteList) Find(c *fi.Context) (*LoadBalancerWhiteList, error) {
-	if l.LoadBalancer.LoadbalancerId == nil {
+	if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
 		return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of LoadBalancerId")
 	}
-	if l.LoadBalancerListener.ListenerPort == nil {
+	if l.LoadBalancerListener == nil || l.LoadBalancerListener.ListenerPort == nil {
 		return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of ListenerPort")
 	}
 	cloud := c.Cloud.(aliup.ALICloud)
@@ -78,10 +78,10 @@ func (_ *LoadBalancerWhiteList) CheckChanges(a, e, changes *LoadBalancerWhiteLis
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.LoadBalancer.LoadbalancerId == nil {
+		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
 			return fi.RequiredField("LoadBalnacerId")
 		}
-		if e.LoadBalancerListener.ListenerPort == nil {
+		if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
 			return fi.RequiredField("ListenerPort")
 		}
 	}
@@ -90,10 +90,10 @@ func (_ *LoadBalancerWhiteList) CheckChanges(a, e, changes *LoadBalancerWhiteLis
 
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancerWhiteList) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerWhiteList) error {
-	if e.LoadBalancer.LoadbalancerId == nil {
+	if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
 		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of LoadBalnacerId")
 	}
-	if e.LoadBalancerListener.ListenerPort == nil {
+	if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
 		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of ListenerPort")
 	}
 

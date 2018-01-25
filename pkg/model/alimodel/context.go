@@ -51,3 +51,19 @@ func (b *ALIModelContext) RAMName(role kops.InstanceGroupRole) string {
 		return ""
 	}
 }
+
+// LinkToVSwitch returns the VSwitch object the cluster is located in
+
+func (c *ALIModelContext) LinkToVSwitch(name string) *alitasks.VSwitch {
+	return &alitasks.VSwitch{Name: s(name)}
+}
+
+// LinkLoadBalancer returns the LoadBalancer object the cluster is located in
+
+func (c *ALIModelContext) LinkLoadBalancer(name string) *alitasks.LoadBalancer {
+	return &alitasks.LoadBalancer{Name: s(name)}
+}
+
+func (c *ALIModelContext) LinkToSSHKey(name string) *alitasks.SSHKey {
+	return &alitasks.SSHKey{Name: s(name)}
+}

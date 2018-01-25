@@ -43,7 +43,7 @@ func (s *SecurityGroup) CompareWithID() *string {
 }
 
 func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
-	if s.VPC.ID == nil {
+	if s.VPC == nil || s.VPC.ID == nil {
 		return nil, fmt.Errorf("error finding LoadBalancerListener, lack of VPCId")
 	}
 
@@ -100,7 +100,7 @@ func (_ *SecurityGroup) CheckChanges(a, e, changes *SecurityGroup) error {
 }
 
 func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroup) error {
-	if e.VPC.ID == nil {
+	if e.VPC == nil || e.VPC.ID == nil {
 		return fmt.Errorf("error updating LoadBalancerListener, lack of VPCId")
 	}
 
