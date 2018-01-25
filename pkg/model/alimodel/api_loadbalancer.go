@@ -51,9 +51,9 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	switch lbSpec.Type {
 	case kops.LoadBalancerTypeInternal:
-		// OK
-	case kops.LoadBalancerTypePublic:
 		return fmt.Errorf("internal LoadBalancers are not yet supported by kops on ALI")
+	case kops.LoadBalancerTypePublic:
+		// pass
 	default:
 		return fmt.Errorf("unhandled LoadBalancer type %q", lbSpec.Type)
 	}

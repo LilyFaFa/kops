@@ -62,7 +62,7 @@ type aliCloudImplementation struct {
 
 var _ fi.Cloud = &aliCloudImplementation{}
 
-// NewALICloud returns a Cloud, expecting the env vars ALIYUN_ACCESS_KEY_ID && ALIYUN_ACCESS_KET_SECRET
+// NewALICloud returns a Cloud, expecting the env vars ALIYUN_ACCESS_KEY_ID && ALIYUN_ACCESS_KEY_SECRET
 // NewALICloud will return an err if env vars are not defined
 func NewALICloud(region string, tags map[string]string) (ALICloud, error) {
 
@@ -72,9 +72,9 @@ func NewALICloud(region string, tags map[string]string) (ALICloud, error) {
 	if accessKeyId == "" {
 		return nil, errors.New("ALIYUN_ACCESS_KEY_ID is required")
 	}
-	accessKeySecret := os.Getenv("ALIYUN_ACCESS_KET_SECRET")
+	accessKeySecret := os.Getenv("ALIYUN_ACCESS_KEY_SECRET")
 	if accessKeySecret == "" {
-		return nil, errors.New("ALIYUN_ACCESS_KET_SECRET is required")
+		return nil, errors.New("ALIYUN_ACCESS_KEY_SECRET is required")
 	}
 
 	escclient := ecs.NewClient(accessKeyId, accessKeySecret)

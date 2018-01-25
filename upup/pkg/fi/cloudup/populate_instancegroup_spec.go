@@ -34,13 +34,16 @@ const (
 	defaultNodeMachineTypeGCE     = "n1-standard-2"
 	defaultNodeMachineTypeVSphere = "vsphere_node"
 	defaultNodeMachineTypeDO      = "2gb"
+	defaultNodeMachineTypeALI     = "ecs.n4.xlarge"
 
 	defaultBastionMachineTypeGCE     = "f1-micro"
 	defaultBastionMachineTypeVSphere = "vsphere_bastion"
+	defaultBastionMachineTypeALI     = "ecs.n4.small"
 
 	defaultMasterMachineTypeGCE     = "n1-standard-1"
 	defaultMasterMachineTypeVSphere = "vsphere_master"
 	defaultMasterMachineTypeDO      = "2gb"
+	defaultMasterMachineTypeALI     = "ecs.n4.xlarge"
 
 	defaultVSphereNodeImage = "kops_ubuntu_16_04.ova"
 	defaultDONodeImage      = "coreos-stable"
@@ -200,6 +203,17 @@ func defaultMachineType(cluster *kops.Cluster, ig *kops.InstanceGroup) (string, 
 
 		case kops.InstanceGroupRoleBastion:
 			return defaultBastionMachineTypeVSphere, nil
+		}
+	case kops.CloudProviderALI:
+		switch ig.Spec.Role {
+		case kops.InstanceGroupRoleMaster:
+			return defaultMasterMachineTypeALI, nil
+
+		case kops.InstanceGroupRoleNode:
+			return defaultNodeMachineTypeALI, nil
+
+		case kops.InstanceGroupRoleBastion:
+			return defaultBastionMachineTypeALI, nil
 		}
 	}
 

@@ -64,6 +64,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/vspheretasks"
 	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/vfs"
+	"k8s.io/kops/pkg/model/alimodel"
 )
 
 const (
@@ -415,6 +416,11 @@ func (c *ApplyClusterCmd) Run() error {
 			l.AddTypes(map[string]interface{}{
 				"Disk": &alitasks.Disk{},
 				"Vpc": &alitasks.VPC{},
+				"SecurityGroup": &alitasks.SecurityGroup{},
+				"SecurityGroupRule": &alitasks.SecurityGroupRule{},
+				"LoadBalancer": &alitasks.LoadBalancer{},
+				"LoadBalancerListener": &alitasks.LoadBalancerListener{},
+				"LoadBalancerWhiteList": &alitasks.LoadBalancerWhiteList{},
 			})
 		}
 
@@ -553,6 +559,16 @@ func (c *ApplyClusterCmd) Run() error {
 					)
 				}
 
+			case kops.CloudProviderALI:
+				aliModelContext := &alimodel.ALIModelContext{
+					KopsModelContext: modelContext,
+				}
+				l.Builders = append(l.Builders,
+					&alimodel.APILoadBalancerModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.FirewallModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.ExternalAccessModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+				)
+
 			case kops.CloudProviderVSphere:
 				// No special settings (yet!)
 
@@ -618,6 +634,13 @@ func (c *ApplyClusterCmd) Run() error {
 				BootstrapScript: bootstrapScriptBuilder,
 				Lifecycle:       &clusterLifecycle,
 			})
+		}
+	case kops.CloudProviderALI:
+		{
+			// TODO
+			//aliModelContext := &alimodel.ALIModelContext{
+			//	KopsModelContext: modelContext,
+			//}
 		}
 	case kops.CloudProviderVSphere:
 		{
