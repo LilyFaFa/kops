@@ -67,7 +67,12 @@ func (c *aliyunOSSConfig) loadConfig() error {
 	if c.accessKeySecret == "" {
 		return fmt.Errorf("ALIYUN_ACCESS_KEY_SECRET cannot be empty")
 	}
-	c.internal = true
+	ossInternal := os.Getenv("ALIYUN_OSS_INTERNAL")
+	if ossInternal != "" {
+		c.internal = true
+	} else {
+		c.internal = false
+	}
 	c.secure = true
 	return nil
 }
