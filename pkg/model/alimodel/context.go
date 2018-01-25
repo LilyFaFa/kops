@@ -17,6 +17,8 @@ limitations under the License.
 package alimodel
 
 import (
+	"github.com/golang/glog"
+	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/model"
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
@@ -33,4 +35,19 @@ func (c *ALIModelContext) LinkToVPC(name string) *alitasks.VPC {
 // LinkToSecurityGroup returns the SecurityGroup with specific name
 func (c *ALIModelContext) LinkToSecurityGroup(name string) *alitasks.SecurityGroup {
 	return &alitasks.SecurityGroup{Name: s(name)}
+}
+
+func (b *ALIModelContext) RAMName(role kops.InstanceGroupRole) string {
+	switch role {
+	case kops.InstanceGroupRoleMaster:
+		return "masters." + b.ClusterName()
+	case kops.InstanceGroupRoleBastion:
+		return "bastions." + b.ClusterName()
+	case kops.InstanceGroupRoleNode:
+		return "nodes." + b.ClusterName()
+
+	default:
+		glog.Fatalf("unknown InstanceGroup Role: %q", role)
+		return ""
+	}
 }
