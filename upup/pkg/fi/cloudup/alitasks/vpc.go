@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package alitasks
 
 import (
 	"fmt"
+
 	"github.com/denverdino/aliyungo/common"
 	"github.com/denverdino/aliyungo/ecs"
 	"github.com/golang/glog"
@@ -31,11 +32,10 @@ type VPC struct {
 	Name      *string
 	Lifecycle *fi.Lifecycle
 
-	ID                 *string
-	Region             *common.Region
-	CIDR               *string
-
-	Tags map[string]string
+	ID     *string
+	Region *string
+	CIDR   *string
+	Shared *bool
 }
 
 var _ fi.CompareWithID = &VPC{}
@@ -47,13 +47,12 @@ func (e *VPC) CompareWithID() *string {
 func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 	cloud := c.Cloud.(aliup.ALICloud)
 
-	if fi.StringValue(e.ID) == "" {
-		return nil, fmt.Errorf("find vpc but no id specifed")
+	request := &ecs.DescribeVpcsArgs{
+		RegionId: common.Region(cloud.Region()),
 	}
 
-	request := &ecs.DescribeVpcsArgs{
-		VpcId:    fi.StringValue(e.ID),
-		RegionId: common.Region(cloud.Region()),
+	if fi.StringValue(e.ID) != "" {
+		request.VpcId = fi.StringValue(e.ID)
 	}
 
 	vpcs, _, err := cloud.EcsClient().DescribeVpcs(request)
@@ -70,38 +69,42 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 		return nil, fmt.Errorf("found multiple VPCs for %q", fi.StringValue(e.ID))
 	}
 
-	vpc := vpcs[0]
+	for _, vpc := range vpcs {
 
-	actual := &VPC{
-		ID:     fi.String(vpc.VpcId),
-		CIDR:   fi.String(vpc.CidrBlock),
-		Name:   fi.String(vpc.VpcName),
-		Region: &vpc.RegionId,
+		if vpc.CidrBlock == fi.StringValue(e.CIDR) {
+			actual := &VPC{
+				ID:        fi.String(vpc.VpcId),
+				CIDR:      fi.String(vpc.CidrBlock),
+				Name:      fi.String(vpc.VpcName),
+				Region:    fi.String(cloud.Region()),
+				Shared:    e.Shared,
+				Lifecycle: e.Lifecycle,
+			}
+			glog.V(4).Infof("found matching VPC %v", actual)
+			return actual, nil
+		}
 	}
 
-	glog.V(4).Infof("found matching VPC %v", actual)
-
-	if e.ID == nil {
-		e.ID = actual.ID
-	}
-	actual.Lifecycle = e.Lifecycle
-
-	return actual, nil
+	return nil, nil
 }
 
 func (s *VPC) CheckChanges(a, e, changes *VPC) error {
 	if a == nil {
 		if e.CIDR == nil {
-			// TODO: Auto-assign CIDR?
 			return fi.RequiredField("CIDR")
 		}
+		if e.Name == nil {
+			return fi.RequiredField("Name")
+		}
 	}
+
 	if a != nil {
 		if changes.CIDR != nil {
 			// TODO: Do we want to destroy & recreate the VPC?
 			return fi.CannotChangeField("CIDR")
 		}
 	}
+
 	return nil
 }
 
@@ -110,11 +113,18 @@ func (e *VPC) Run(c *fi.Context) error {
 }
 
 func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
+
+	if fi.BoolValue(e.Shared) && a == nil {
+		if a == nil {
+			return fmt.Errorf("VPC with id %q not found", fi.StringValue(e.ID))
+		}
+	}
+
 	if a == nil {
 		glog.V(2).Infof("Creating VPC with CIDR: %q", *e.CIDR)
 
 		request := &ecs.CreateVpcArgs{
-			RegionId:  *e.Region,
+			RegionId:  common.Region(t.Cloud.Region()),
 			CidrBlock: fi.StringValue(e.CIDR),
 		}
 
