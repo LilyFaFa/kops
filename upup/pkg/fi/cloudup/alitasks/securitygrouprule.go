@@ -47,7 +47,7 @@ func (s *SecurityGroupRule) CompareWithID() *string {
 }
 
 func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
-	if s.SecurityGroup.SecurityGroupId == nil {
+	if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
 		return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
 	}
 
@@ -135,7 +135,7 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 }
 
 func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroupRule) error {
-	if e.SecurityGroup.SecurityGroupId == nil {
+	if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
 		return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
 	}
 

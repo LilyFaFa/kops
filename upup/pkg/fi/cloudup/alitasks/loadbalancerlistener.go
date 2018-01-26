@@ -47,7 +47,7 @@ func (l *LoadBalancerListener) CompareWithID() *string {
 }
 
 func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error) {
-	if l.LoadBalancer.LoadbalancerId == nil {
+	if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
 		return nil, fmt.Errorf("error finding LoadBalancerListener, lack of LoadBalancerId")
 	}
 
@@ -80,7 +80,7 @@ func (_ *LoadBalancerListener) CheckChanges(a, e, changes *LoadBalancerListener)
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.LoadBalancer.LoadbalancerId == nil {
+		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
 			return fi.RequiredField("LoadBalnacerId")
 		}
 		if e.ListenerPort == nil {
