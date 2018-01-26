@@ -67,7 +67,6 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				Lifecycle: b.Lifecycle,
 				MinSize:   i(minSize),
 				MaxSize:   i(maxSize),
-				//VSwitch:   b.LinkToVSwitch("switchName"),
 			}
 
 			subnets, err := b.GatherSubnets(ig)
@@ -82,7 +81,7 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			}
 
 			if ig.Spec.Role == kops.InstanceGroupRoleMaster {
-				autoscalingGroup.LoadBalancer = b.LinkLoadBalancer("api." + b.ClusterName())
+				autoscalingGroup.LoadBalancer = b.LinkLoadBalancer()
 			}
 			c.AddTask(autoscalingGroup)
 		}
@@ -118,6 +117,7 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				Lifecycle:        b.Lifecycle,
 				AutoscalingGroup: autoscalingGroup,
 				SecurityGroup:    b.LinkToSecurityGroup(string(ig.Spec.Role)),
+				RAMRole:          b.LinkToRAMRole(ig.Spec.Role),
 
 				ImageId:            s(ig.Spec.Image),
 				InstanceType:       s(instanceType),
@@ -125,6 +125,7 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				SystemDiskCategory: s(volumeType),
 				Tags:               tags,
 			}
+
 			sshkey, err := b.SSHKeyName()
 			if err != nil {
 				return err

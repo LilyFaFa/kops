@@ -70,7 +70,7 @@ func (b *RAMModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	// Generate RAM objects etc for each role
 	for _, role := range roles {
-		name := b.RAMName(role)
+		name := b.GetNameForRAM(role)
 
 		var ramRole *alitasks.RAMRole
 		{

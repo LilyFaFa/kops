@@ -31,11 +31,11 @@ var _ fi.ModelBuilder = &NetWorkModelBuilder{}
 
 func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	sharedVPC := b.Cluster.SharedVPC()
-	vpcName := b.ClusterName()
 
 	// VPC that holds everything for the cluster
 	vpc := &alitasks.VPC{}
 	{
+		vpcName := b.GetNameForVPC()
 		vpc = &alitasks.VPC{
 			Name:      s(vpcName),
 			Lifecycle: b.Lifecycle,
@@ -57,7 +57,7 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		//subnetName := subnetSpec.Name + "." + b.ClusterName()
 
 		vswitch := &alitasks.VSwitch{
-			Name:      s(subnetSpec.Name),
+			Name:      s(b.GetNameForVSwitch(subnetSpec.Name)),
 			Lifecycle: b.Lifecycle,
 			VPC:       vpc,
 			ZoneId:    s(subnetSpec.Zone),

@@ -43,6 +43,7 @@ type LaunchConfiguration struct {
 	SystemDiskSize     *int
 	SystemDiskCategory *string
 
+	RAMRole          *RAMRole
 	AutoscalingGroup *AutoscalingGroup
 	SSHKey           *SSHKey
 	UserData         *fi.ResourceHolder
@@ -92,6 +93,13 @@ func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) 
 			Name: fi.String(configList[0].KeyPairName),
 		}
 	}
+
+	if configList[0].RamRoleName != "" {
+		actual.RAMRole = &RAMRole{
+			Name: fi.String(configList[0].RamRoleName),
+		}
+	}
+
 	if configList[0].UserData != "" {
 		userData, err := base64.StdEncoding.DecodeString(configList[0].UserData)
 		if err != nil {
@@ -161,6 +169,10 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 		SecurityGroupId:     fi.StringValue(e.SecurityGroup.SecurityGroupId),
 		SystemDisk_Size:     common.UnderlineString(strconv.Itoa(fi.IntValue(e.SystemDiskSize))),
 		SystemDisk_Category: common.UnderlineString(fi.StringValue(e.SystemDiskCategory)),
+	}
+
+	if e.RAMRole != nil && e.RAMRole.Name != nil {
+		createScalingConfiguration.RamRoleName = fi.StringValue(e.RAMRole.Name)
 	}
 
 	if e.UserData != nil {

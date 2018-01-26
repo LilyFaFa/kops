@@ -54,7 +54,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			t := &alitasks.SecurityGroupRule{
 				Name:          s("ssh-external-to-master-" + sshAccess),
 				Lifecycle:     b.Lifecycle,
-				SecurityGroup: b.LinkToSecurityGroup("master." + b.ClusterName()),
+				SecurityGroup: b.LinkToSecurityGroup("master"),
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
@@ -64,7 +64,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			t = &alitasks.SecurityGroupRule{
 				Name:          s("ssh-external-to-node-" + sshAccess),
 				Lifecycle:     b.Lifecycle,
-				SecurityGroup: b.LinkToSecurityGroup("node." + b.ClusterName()),
+				SecurityGroup: b.LinkToSecurityGroup("node"),
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
@@ -87,7 +87,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		t := &alitasks.SecurityGroupRule{
 			Name:          s("nodeport-tcp-external-to-node-" + nodePortAccess),
 			Lifecycle:     b.Lifecycle,
-			SecurityGroup: b.LinkToSecurityGroup("node." + b.ClusterName()),
+			SecurityGroup: b.LinkToSecurityGroup("node"),
 			IpProtocol:    s(ipProtocolTCP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),
@@ -97,7 +97,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		t = &alitasks.SecurityGroupRule{
 			Name:          s("nodeport-udp-external-to-node-" + nodePortAccess),
 			Lifecycle:     b.Lifecycle,
-			SecurityGroup: b.LinkToSecurityGroup("node." + b.ClusterName()),
+			SecurityGroup: b.LinkToSecurityGroup("node"),
 			IpProtocol:    s(ipProtocolUDP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),

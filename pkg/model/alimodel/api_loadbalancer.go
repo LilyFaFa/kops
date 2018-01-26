@@ -63,7 +63,7 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	{
 
 		loadbalancer = &alitasks.LoadBalancer{
-			Name:      s("api." + b.ClusterName()),
+			Name:      s(b.GetNameForLoadBalancer()),
 			Lifecycle: b.Lifecycle,
 		}
 
