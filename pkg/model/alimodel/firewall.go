@@ -36,10 +36,11 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create nodeInstances security group
 	var nodeSecurityGroup *alitasks.SecurityGroup
 	{
+		groupName := b.GetNameForSecurityGroup("node")
 		nodeSecurityGroup = &alitasks.SecurityGroup{
-			Name:      s("nodes." + b.ClusterName()),
+			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,
-			VPC:       b.LinkToVPC(b.ClusterName()),
+			VPC:       b.LinkToVPC(),
 		}
 		c.AddTask(nodeSecurityGroup)
 	}
@@ -47,10 +48,11 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create masterInstances security group
 	var masterSecurityGroup *alitasks.SecurityGroup
 	{
+		groupName := b.GetNameForSecurityGroup("master")
 		masterSecurityGroup = &alitasks.SecurityGroup{
-			Name:      s("masters." + b.ClusterName()),
+			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,
-			VPC:       b.LinkToVPC(b.ClusterName()),
+			VPC:       b.LinkToVPC(),
 		}
 		c.AddTask(masterSecurityGroup)
 	}

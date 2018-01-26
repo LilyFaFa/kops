@@ -38,7 +38,7 @@ type RAMRole struct {
 var _ fi.CompareWithID = &RAMRole{}
 
 func (r *RAMRole) CompareWithID() *string {
-	return r.RAMRoleId
+	return r.Name
 }
 
 func (r *RAMRole) Find(c *fi.Context) (*RAMRole, error) {

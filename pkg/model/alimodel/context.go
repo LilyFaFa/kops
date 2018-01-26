@@ -28,23 +28,35 @@ type ALIModelContext struct {
 }
 
 // LinkToVPC returns the VPC object the cluster is located in
-func (c *ALIModelContext) LinkToVPC(name string) *alitasks.VPC {
-	return &alitasks.VPC{Name: s(name)}
+func (c *ALIModelContext) LinkToVPC() *alitasks.VPC {
+	return &alitasks.VPC{Name: s(c.GetNameForVPC())}
+}
+
+func (c *ALIModelContext) GetNameForVPC() string {
+	return c.ClusterName()
 }
 
 // LinkToSecurityGroup returns the SecurityGroup with specific name
-func (c *ALIModelContext) LinkToSecurityGroup(name string) *alitasks.SecurityGroup {
-	return &alitasks.SecurityGroup{Name: s(name)}
+func (c *ALIModelContext) LinkToSecurityGroup(role string) *alitasks.SecurityGroup {
+	return &alitasks.SecurityGroup{Name: s(c.GetNameForSecurityGroup(role))}
 }
 
-func (b *ALIModelContext) RAMName(role kops.InstanceGroupRole) string {
+func (c *ALIModelContext) GetNameForSecurityGroup(role string) string {
+	return role + "." + c.ClusterName()
+}
+
+func (c *ALIModelContext) LinkToRAMRole(role kops.InstanceGroupRole) *alitasks.RAMRole {
+	return &alitasks.RAMRole{Name: s(c.GetNameForRAM(role))}
+}
+
+func (c *ALIModelContext) GetNameForRAM(role kops.InstanceGroupRole) string {
 	switch role {
 	case kops.InstanceGroupRoleMaster:
-		return "masters." + b.ClusterName()
+		return "masters." + c.ClusterName()
 	case kops.InstanceGroupRoleBastion:
-		return "bastions." + b.ClusterName()
+		return "bastions." + c.ClusterName()
 	case kops.InstanceGroupRoleNode:
-		return "nodes." + b.ClusterName()
+		return "nodes." + c.ClusterName()
 
 	default:
 		glog.Fatalf("unknown InstanceGroup Role: %q", role)
@@ -53,15 +65,21 @@ func (b *ALIModelContext) RAMName(role kops.InstanceGroupRole) string {
 }
 
 // LinkToVSwitch returns the VSwitch object the cluster is located in
+func (c *ALIModelContext) LinkToVSwitch(subnetName string) *alitasks.VSwitch {
+	return &alitasks.VSwitch{Name: s(c.GetNameForVSwitch(subnetName))}
+}
 
-func (c *ALIModelContext) LinkToVSwitch(name string) *alitasks.VSwitch {
-	return &alitasks.VSwitch{Name: s(name)}
+func (c *ALIModelContext) GetNameForVSwitch(subnetName string) string {
+	return subnetName + "." + c.ClusterName()
 }
 
 // LinkLoadBalancer returns the LoadBalancer object the cluster is located in
+func (c *ALIModelContext) LinkLoadBalancer() *alitasks.LoadBalancer {
+	return &alitasks.LoadBalancer{Name: s(c.GetNameForLoadBalancer())}
+}
 
-func (c *ALIModelContext) LinkLoadBalancer(name string) *alitasks.LoadBalancer {
-	return &alitasks.LoadBalancer{Name: s(name)}
+func (c *ALIModelContext) GetNameForLoadBalancer() string {
+	return "api." + c.ClusterName()
 }
 
 func (c *ALIModelContext) LinkToSSHKey(name string) *alitasks.SSHKey {
