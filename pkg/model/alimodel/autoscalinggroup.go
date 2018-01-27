@@ -116,7 +116,7 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				Name:             s(name),
 				Lifecycle:        b.Lifecycle,
 				AutoscalingGroup: autoscalingGroup,
-				SecurityGroup:    b.LinkToSecurityGroup(string(ig.Spec.Role)),
+				SecurityGroup:    b.LinkToSecurityGroup(ig.Spec.Role),
 				RAMRole:          b.LinkToRAMRole(ig.Spec.Role),
 
 				ImageId:            s(ig.Spec.Image),
@@ -126,11 +126,10 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				Tags:               tags,
 			}
 
-			sshkey, err := b.SSHKeyName()
 			if err != nil {
 				return err
 			} else {
-				launchConfiguration.SSHKey = b.LinkToSSHKey(sshkey)
+				launchConfiguration.SSHKey = b.LinkToSSHKey()
 			}
 			if launchConfiguration.UserData, err = b.BootstrapScript.ResourceNodeUp(ig, &b.Cluster.Spec); err != nil {
 				return err

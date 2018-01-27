@@ -108,14 +108,15 @@ func (_ *AutoscalingGroup) CheckChanges(a, e, changes *AutoscalingGroup) error {
 }
 
 func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *AutoscalingGroup) error {
-	if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-		return fmt.Errorf("error updating autoscalingGroup, lack of LoadBalnacerId")
-	}
+	/*
+		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
+			return fmt.Errorf("error updating autoscalingGroup, lack of LoadBalnacerId")
+		}
 
-	if len(e.VSwitchs) == 0 {
-		return fmt.Errorf("error updating autoscalingGroup, lack of VSwitch")
-	}
-
+		if len(e.VSwitchs) == 0 {
+			return fmt.Errorf("error updating autoscalingGroup, lack of VSwitch")
+		}
+	*/
 	vswitchs := common.FlattenArray{}
 	for _, vswitch := range e.VSwitchs {
 		if vswitch.VSwitchId == nil {

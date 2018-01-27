@@ -21,6 +21,7 @@ import (
 
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
+	"github.com/golang/glog"
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
@@ -47,8 +48,14 @@ func (s *SecurityGroupRule) CompareWithID() *string {
 }
 
 func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
+	/*
+		if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
+			return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
+		}
+	*/
 	if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
-		return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
+		glog.V(4).Infof("SecurityGroup / SecurityGroupId not found for %s, skipping Find", fi.StringValue(s.Name))
+		return nil, nil
 	}
 
 	cloud := c.Cloud.(aliup.ALICloud)
@@ -117,9 +124,11 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.SecurityGroup.SecurityGroupId == nil {
-			return fi.RequiredField("SecurityGroupId")
-		}
+		/*
+			if e.SecurityGroup.SecurityGroupId == nil {
+				return fi.RequiredField("SecurityGroupId")
+			}
+		*/
 		if e.IpProtocol == nil {
 			return fi.RequiredField("IpProtocol")
 		}
@@ -135,10 +144,11 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 }
 
 func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroupRule) error {
-	if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-		return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
-	}
-
+	/*
+		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
+			return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
+		}
+	*/
 	if a == nil {
 		if fi.BoolValue(e.In) == true {
 			authorizeSecurityGroupArgs := &ecs.AuthorizeSecurityGroupArgs{

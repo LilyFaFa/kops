@@ -48,10 +48,15 @@ func (v *VSwitch) CompareWithID() *string {
 }
 
 func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
+	/*
+		if v.VPC == nil || v.VPC.ID == nil {
+			return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
+		}
+	*/
 	if v.VPC == nil || v.VPC.ID == nil {
-		return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
+		glog.V(4).Infof("VPC / VPCID not found for %s, skipping Find", fi.StringValue(v.Name))
+		return nil, nil
 	}
-
 	cloud := c.Cloud.(aliup.ALICloud)
 
 	describeVSwitchesArgs := &ecs.DescribeVSwitchesArgs{
@@ -96,9 +101,11 @@ func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 		if e.CidrBlock == nil {
 			return fi.RequiredField("CidrBlock")
 		}
-		if e.VPC == nil || e.VPC.ID == nil {
-			return fi.RequiredField("VPCId")
-		}
+		/*
+			if e.VPC == nil || e.VPC.ID == nil {
+				return fi.RequiredField("VPCId")
+			}
+		*/
 		if e.ZoneId == nil {
 			return fi.RequiredField("ZoneId")
 		}

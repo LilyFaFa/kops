@@ -59,9 +59,16 @@ func (l *LaunchConfiguration) CompareWithID() *string {
 }
 
 func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) {
+	/*
+		if l.AutoscalingGroup == nil || l.AutoscalingGroup.ScalingGroupId == nil {
+			return nil, fmt.Errorf("error finding AutoscalingGroup, lack of ScalingGroupId")
+		}
+	*/
 	if l.AutoscalingGroup == nil || l.AutoscalingGroup.ScalingGroupId == nil {
-		return nil, fmt.Errorf("error finding AutoscalingGroup, lack of ScalingGroupId")
+		glog.V(4).Infof("AutoscalingGroup / AutoscalingGroupId not found for %s, skipping Find", fi.StringValue(l.Name))
+		return nil, nil
 	}
+
 	cloud := c.Cloud.(aliup.ALICloud)
 
 	describeScalingConfigurationsArgs := &ess.DescribeScalingConfigurationsArgs{
@@ -69,6 +76,10 @@ func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) 
 		ScalingConfigurationName: common.FlattenArray{fi.StringValue(l.Name)},
 		ScalingGroupId:           fi.StringValue(l.AutoscalingGroup.ScalingGroupId),
 	}
+	if l.AutoscalingGroup != nil && l.AutoscalingGroup.ScalingGroupId != nil {
+		describeScalingConfigurationsArgs.ScalingGroupId = fi.StringValue(l.AutoscalingGroup.ScalingGroupId)
+	}
+
 	configList, _, err := cloud.EssClient().DescribeScalingConfigurations(describeScalingConfigurationsArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error finding ScalingConfigurations: %v", err)
@@ -136,12 +147,14 @@ func (_ *LaunchConfiguration) CheckChanges(a, e, changes *LaunchConfiguration) e
 	if e.Name == nil {
 		return fi.RequiredField("Name")
 	}
-	if e.AutoscalingGroup == nil || e.AutoscalingGroup.ScalingGroupId == nil {
-		return fi.RequiredField("ScalingGroupId")
-	}
-	if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-		return fi.RequiredField("SecurityGroupId")
-	}
+	/*
+		if e.AutoscalingGroup == nil || e.AutoscalingGroup.ScalingGroupId == nil {
+			return fi.RequiredField("ScalingGroupId")
+		}
+		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
+			return fi.RequiredField("SecurityGroupId")
+		}
+	*/
 
 	if e.ImageId == nil {
 		return fi.RequiredField("ImageId")
@@ -154,14 +167,14 @@ func (_ *LaunchConfiguration) CheckChanges(a, e, changes *LaunchConfiguration) e
 }
 
 func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LaunchConfiguration) error {
-
-	if e.AutoscalingGroup == nil || e.AutoscalingGroup.ScalingGroupId == nil {
-		return fmt.Errorf("error updating AutoscalingGroup, lack of ScalingGroupId")
-	}
-	if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-		return fmt.Errorf("error updating AutoscalingGroup, lack of SecurityGroupId")
-	}
-
+	/*
+		if e.AutoscalingGroup == nil || e.AutoscalingGroup.ScalingGroupId == nil {
+			return fmt.Errorf("error updating AutoscalingGroup, lack of ScalingGroupId")
+		}
+		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
+			return fmt.Errorf("error updating AutoscalingGroup, lack of SecurityGroupId")
+		}
+	*/
 	createScalingConfiguration := &ess.CreateScalingConfigurationArgs{
 		ScalingGroupId:      fi.StringValue(e.AutoscalingGroup.ScalingGroupId),
 		ImageId:             fi.StringValue(e.ImageId),

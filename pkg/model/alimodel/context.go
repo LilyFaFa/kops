@@ -37,12 +37,23 @@ func (c *ALIModelContext) GetNameForVPC() string {
 }
 
 // LinkToSecurityGroup returns the SecurityGroup with specific name
-func (c *ALIModelContext) LinkToSecurityGroup(role string) *alitasks.SecurityGroup {
+func (c *ALIModelContext) LinkToSecurityGroup(role kops.InstanceGroupRole) *alitasks.SecurityGroup {
 	return &alitasks.SecurityGroup{Name: s(c.GetNameForSecurityGroup(role))}
 }
 
-func (c *ALIModelContext) GetNameForSecurityGroup(role string) string {
-	return role + "." + c.ClusterName()
+func (c *ALIModelContext) GetNameForSecurityGroup(role kops.InstanceGroupRole) string {
+	switch role {
+	case kops.InstanceGroupRoleMaster:
+		return "masters." + c.ClusterName()
+	case kops.InstanceGroupRoleBastion:
+		return "bastions." + c.ClusterName()
+	case kops.InstanceGroupRoleNode:
+		return "nodes." + c.ClusterName()
+
+	default:
+		glog.Fatalf("unknown InstanceGroup Role: %q", role)
+		return ""
+	}
 }
 
 func (c *ALIModelContext) LinkToRAMRole(role kops.InstanceGroupRole) *alitasks.RAMRole {
@@ -82,6 +93,10 @@ func (c *ALIModelContext) GetNameForLoadBalancer() string {
 	return "api." + c.ClusterName()
 }
 
-func (c *ALIModelContext) LinkToSSHKey(name string) *alitasks.SSHKey {
-	return &alitasks.SSHKey{Name: s(name)}
+func (c *ALIModelContext) LinkToSSHKey() *alitasks.SSHKey {
+	return &alitasks.SSHKey{Name: s(c.GetNameForSSHKey())}
+}
+
+func (c *ALIModelContext) GetNameForSSHKey() string {
+	return "k8s.sshkey" + c.ClusterName()
 }

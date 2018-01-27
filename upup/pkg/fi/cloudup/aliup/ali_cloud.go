@@ -166,8 +166,14 @@ func (c *aliCloudImplementation) GetTags(resourceId string, resourceType string)
 
 // AddClusterTags will add ClusterTags to resources (in ALI, only disk, instance, snapshot or image can be tagged )
 func (c *aliCloudImplementation) AddClusterTags(tags map[string]string) {
-	for k, v := range c.tags {
-		tags[k] = v
+
+	if c.tags != nil && len(c.tags) != 0 {
+		if tags == nil {
+			tags = make(map[string]string)
+		}
+		for k, v := range c.tags {
+			tags[k] = v
+		}
 	}
 }
 

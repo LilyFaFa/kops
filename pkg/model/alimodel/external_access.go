@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/golang/glog"
+	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
@@ -54,7 +55,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			t := &alitasks.SecurityGroupRule{
 				Name:          s("ssh-external-to-master-" + sshAccess),
 				Lifecycle:     b.Lifecycle,
-				SecurityGroup: b.LinkToSecurityGroup("master"),
+				SecurityGroup: b.LinkToSecurityGroup(kops.InstanceGroupRoleMaster),
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
@@ -64,7 +65,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			t = &alitasks.SecurityGroupRule{
 				Name:          s("ssh-external-to-node-" + sshAccess),
 				Lifecycle:     b.Lifecycle,
-				SecurityGroup: b.LinkToSecurityGroup("node"),
+				SecurityGroup: b.LinkToSecurityGroup(kops.InstanceGroupRoleNode),
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
@@ -87,7 +88,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		t := &alitasks.SecurityGroupRule{
 			Name:          s("nodeport-tcp-external-to-node-" + nodePortAccess),
 			Lifecycle:     b.Lifecycle,
-			SecurityGroup: b.LinkToSecurityGroup("node"),
+			SecurityGroup: b.LinkToSecurityGroup(kops.InstanceGroupRoleNode),
 			IpProtocol:    s(ipProtocolTCP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),
@@ -97,7 +98,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		t = &alitasks.SecurityGroupRule{
 			Name:          s("nodeport-udp-external-to-node-" + nodePortAccess),
 			Lifecycle:     b.Lifecycle,
-			SecurityGroup: b.LinkToSecurityGroup("node"),
+			SecurityGroup: b.LinkToSecurityGroup(kops.InstanceGroupRoleNode),
 			IpProtocol:    s(ipProtocolUDP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),

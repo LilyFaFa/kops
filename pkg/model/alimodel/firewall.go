@@ -17,6 +17,7 @@ limitations under the License.
 package alimodel
 
 import (
+	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
@@ -36,7 +37,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create nodeInstances security group
 	var nodeSecurityGroup *alitasks.SecurityGroup
 	{
-		groupName := b.GetNameForSecurityGroup("node")
+		groupName := b.GetNameForSecurityGroup(kops.InstanceGroupRoleNode)
 		nodeSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,
@@ -48,7 +49,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create masterInstances security group
 	var masterSecurityGroup *alitasks.SecurityGroup
 	{
-		groupName := b.GetNameForSecurityGroup("master")
+		groupName := b.GetNameForSecurityGroup(kops.InstanceGroupRoleMaster)
 		masterSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,

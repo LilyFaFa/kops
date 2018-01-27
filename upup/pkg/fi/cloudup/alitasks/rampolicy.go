@@ -86,10 +86,11 @@ func (_ *RAMPolicy) CheckChanges(a, e, changes *RAMPolicy) error {
 	if e.Name == nil {
 		return fi.RequiredField("Name")
 	}
-
-	if e.RamRole == nil || e.RamRole.RAMRoleId == nil {
-		return fi.RequiredField("RAMRoleId")
-	}
+	/*
+		if e.RamRole == nil || e.RamRole.RAMRoleId == nil {
+			return fi.RequiredField("RAMRoleId")
+		}
+	*/
 	return nil
 }
 

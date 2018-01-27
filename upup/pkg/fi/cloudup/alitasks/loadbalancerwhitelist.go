@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/golang/glog"
+
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 )
@@ -42,12 +44,23 @@ func (l *LoadBalancerWhiteList) CompareWithID() *string {
 }
 
 func (l *LoadBalancerWhiteList) Find(c *fi.Context) (*LoadBalancerWhiteList, error) {
+	/*
+		if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
+			return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of LoadBalancerId")
+		}
+		if l.LoadBalancerListener == nil || l.LoadBalancerListener.ListenerPort == nil {
+			return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of ListenerPort")
+		}
+	*/
 	if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
-		return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of LoadBalancerId")
+		glog.V(4).Infof("LoadBalancer / LoadbalancerId not found for %s, skipping Find", fi.StringValue(l.Name))
+		return nil, nil
 	}
 	if l.LoadBalancerListener == nil || l.LoadBalancerListener.ListenerPort == nil {
-		return nil, fmt.Errorf("error finding LoadBalancerWhiteList, lack of ListenerPort")
+		glog.V(4).Infof("LoadBalancerListener / LoadbalancerListenerPort not found for %s, skipping Find", fi.StringValue(l.Name))
+		return nil, nil
 	}
+
 	cloud := c.Cloud.(aliup.ALICloud)
 	loadBalancerId := fi.StringValue(l.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(l.LoadBalancerListener.ListenerPort)
@@ -78,25 +91,28 @@ func (_ *LoadBalancerWhiteList) CheckChanges(a, e, changes *LoadBalancerWhiteLis
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-			return fi.RequiredField("LoadBalnacerId")
-		}
-		if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
-			return fi.RequiredField("ListenerPort")
-		}
+		/*
+			if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
+				return fi.RequiredField("LoadBalnacerId")
+			}
+			if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
+				return fi.RequiredField("ListenerPort")
+			}
+		*/
 	}
 	return nil
 }
 
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancerWhiteList) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerWhiteList) error {
-	if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of LoadBalnacerId")
-	}
-	if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
-		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of ListenerPort")
-	}
-
+	/*
+		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
+			return fmt.Errorf("error updating LoadBalancerWhiteList, lack of LoadBalnacerId")
+		}
+		if e.LoadBalancerListener == nil || e.LoadBalancerListener.ListenerPort == nil {
+			return fmt.Errorf("error updating LoadBalancerWhiteList, lack of ListenerPort")
+		}
+	*/
 	loadBalancerId := fi.StringValue(e.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(e.LoadBalancerListener.ListenerPort)
 	sourceItems := fi.StringValue(e.SourceItems)

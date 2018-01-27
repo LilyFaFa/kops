@@ -39,6 +39,7 @@ import (
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/model"
+	"k8s.io/kops/pkg/model/alimodel"
 	"k8s.io/kops/pkg/model/awsmodel"
 	"k8s.io/kops/pkg/model/components"
 	"k8s.io/kops/pkg/model/domodel"
@@ -64,7 +65,6 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/vspheretasks"
 	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/vfs"
-	"k8s.io/kops/pkg/model/alimodel"
 )
 
 const (
@@ -411,17 +411,34 @@ func (c *ApplyClusterCmd) Run() error {
 			if !AlphaAllowALI.Enabled() {
 				return fmt.Errorf("Aliyun support is currently alpha, and is feature-gated.  export KOPS_FEATURE_FLAGS=AlphaAllowALI")
 			}
+
 			aliCloud := cloud.(aliup.ALICloud)
 			region = aliCloud.Region()
 			l.AddTypes(map[string]interface{}{
-				"Disk": &alitasks.Disk{},
-				"Vpc": &alitasks.VPC{},
-				"SecurityGroup": &alitasks.SecurityGroup{},
-				"SecurityGroupRule": &alitasks.SecurityGroupRule{},
-				"LoadBalancer": &alitasks.LoadBalancer{},
-				"LoadBalancerListener": &alitasks.LoadBalancerListener{},
+				"Disk":                  &alitasks.Disk{},
+				"Vpc":                   &alitasks.VPC{},
+				"SecurityGroup":         &alitasks.SecurityGroup{},
+				"SecurityGroupRule":     &alitasks.SecurityGroupRule{},
+				"LoadBalancer":          &alitasks.LoadBalancer{},
+				"LoadBalancerListener":  &alitasks.LoadBalancerListener{},
 				"LoadBalancerWhiteList": &alitasks.LoadBalancerWhiteList{},
+				"AutoscalingGroup":      &alitasks.AutoscalingGroup{},
+				"LaunchConfiguration":   &alitasks.LaunchConfiguration{},
+				"RAMPolicy":             &alitasks.RAMPolicy{},
+				"RAMRole":               &alitasks.RAMRole{},
+				"SSHKey":                &alitasks.SSHKey{},
+				"VSwitch":               &alitasks.VSwitch{},
 			})
+
+			if len(sshPublicKeys) == 0 {
+				return fmt.Errorf("SSH public key must be specified when running with AWS (create with `kops create secret --name %s sshpublickey admin -i ~/.ssh/id_rsa.pub`)", cluster.ObjectMeta.Name)
+			}
+
+			modelContext.SSHPublicKeys = sshPublicKeys
+
+			if len(sshPublicKeys) != 1 {
+				return fmt.Errorf("Exactly one 'admin' SSH public key can be specified when running with AWS; please delete a key using `kops delete secret`")
+			}
 		}
 
 	case kops.CloudProviderVSphere:
@@ -565,6 +582,10 @@ func (c *ApplyClusterCmd) Run() error {
 				}
 				l.Builders = append(l.Builders,
 					&alimodel.APILoadBalancerModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.AutoscalingGroupModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.NetWorkModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.RAMModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
+					&alimodel.SSHKeyModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
 					&alimodel.FirewallModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
 					&alimodel.ExternalAccessModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
 				)

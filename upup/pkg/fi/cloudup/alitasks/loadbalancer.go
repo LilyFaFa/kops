@@ -72,6 +72,7 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 	actual.Name = fi.String(responseLoadBalancers[0].LoadBalancerName)
 	actual.AddressType = fi.String(string(responseLoadBalancers[0].AddressType))
 	actual.LoadbalancerId = fi.String(responseLoadBalancers[0].LoadBalancerId)
+	actual.LoadBalancerAddress = fi.String(responseLoadBalancers[0].Address)
 
 	describeTagsArgs := &slb.DescribeTagsArgs{
 		RegionId:       common.Region(cloud.Region()),
@@ -91,6 +92,30 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 	// Ignore "system" fields
 	actual.Lifecycle = l.Lifecycle
 	return actual, nil
+}
+
+func (l *LoadBalancer) FindIPAddress(context *fi.Context) (*string, error) {
+	cloud := context.Cloud.(aliup.ALICloud)
+	//	clusterTags := cloud.GetClusterTags()
+	//TODO:Get loadbalancer with LoadBalancerName, hope to support finding with tags
+	describeLoadBalancersArgs := &slb.DescribeLoadBalancersArgs{
+		RegionId:         common.Region(cloud.Region()),
+		LoadBalancerName: fi.StringValue(l.Name),
+		AddressType:      slb.AddressType(fi.StringValue(l.AddressType)),
+	}
+	responseLoadBalancers, err := cloud.SlbClient().DescribeLoadBalancers(describeLoadBalancersArgs)
+	if err != nil {
+		return nil, fmt.Errorf("error finding LoadBalancers: %v", err)
+	}
+	// Don't exist loadbalancer with specified ClusterTags or Name.
+	if len(responseLoadBalancers) == 0 {
+		return nil, nil
+	}
+	if len(responseLoadBalancers) > 1 {
+		glog.V(4).Info("The number of specified loadbalancer whith the same name exceeds 1, loadbalancerName:%q", *l.Name)
+	}
+	address := responseLoadBalancers[0].Address
+	return &address, nil
 }
 
 func (l *LoadBalancer) Run(c *fi.Context) error {
