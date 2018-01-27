@@ -39,6 +39,7 @@ type VSwitch struct {
 	CidrBlock *string
 	Region    *common.Region
 	VPC       *VPC
+	Shared    *bool
 }
 
 var _ fi.CompareWithID = &VSwitch{}
@@ -48,10 +49,15 @@ func (v *VSwitch) CompareWithID() *string {
 }
 
 func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
+	/*
+		if v.VPC == nil || v.VPC.ID == nil {
+			return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
+		}
+	*/
 	if v.VPC == nil || v.VPC.ID == nil {
-		return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
+		glog.V(4).Infof("VPC / VPCID not found for %s, skipping Find", fi.StringValue(v.Name))
+		return nil, nil
 	}
-
 	cloud := c.Cloud.(aliup.ALICloud)
 
 	describeVSwitchesArgs := &ecs.DescribeVSwitchesArgs{
@@ -60,9 +66,33 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 		ZoneId:   fi.StringValue(v.ZoneId),
 	}
 
+	if v.VSwitchId != nil && fi.StringValue(v.VSwitchId) != "" {
+		describeVSwitchesArgs.VSwitchId = fi.StringValue(v.VSwitchId)
+	}
+
 	vswitcheList, _, err := cloud.EcsClient().DescribeVSwitches(describeVSwitchesArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error listing VSwitchs: %v", err)
+	}
+
+	if fi.BoolValue(v.Shared) {
+		if len(vswitcheList) != 1 {
+			return nil, fmt.Errorf("found multiple VSwitchs for %q", fi.StringValue(v.VSwitchId))
+		} else {
+			actual := &VSwitch{
+				Name:      fi.String(vswitcheList[0].VSwitchName),
+				VSwitchId: fi.String(vswitcheList[0].VSwitchId),
+				VPC: &VPC{
+					ID: fi.String(vswitcheList[0].VpcId),
+				},
+
+				ZoneId:    fi.String(vswitcheList[0].ZoneId),
+				CidrBlock: fi.String(vswitcheList[0].CidrBlock),
+				// Ignore "system" fields
+				Lifecycle: v.Lifecycle,
+			}
+			return actual, nil
+		}
 	}
 
 	if len(vswitcheList) == 0 {
@@ -70,7 +100,7 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 	}
 
 	for _, vswitch := range vswitcheList {
-		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) {
+		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) && !fi.BoolValue(v.Shared) {
 			actual := &VSwitch{
 				Name:      fi.String(vswitch.VSwitchName),
 				VSwitchId: fi.String(vswitch.VSwitchId),
@@ -83,8 +113,8 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 				// Ignore "system" fields
 				Lifecycle: v.Lifecycle,
 			}
+			v.VSwitchId = actual.VSwitchId
 			return actual, nil
-
 		}
 	}
 
@@ -96,9 +126,11 @@ func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 		if e.CidrBlock == nil {
 			return fi.RequiredField("CidrBlock")
 		}
-		if e.VPC == nil || e.VPC.ID == nil {
-			return fi.RequiredField("VPCId")
-		}
+		/*
+			if e.VPC == nil || e.VPC.ID == nil {
+				return fi.RequiredField("VPCId")
+			}
+		*/
 		if e.ZoneId == nil {
 			return fi.RequiredField("ZoneId")
 		}
@@ -116,9 +148,14 @@ func (e *VSwitch) Run(c *fi.Context) error {
 
 func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error {
 	if e.VPC == nil || e.VPC.ID == nil {
-		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of VPCId")
+		return fmt.Errorf("error updating VSwitch, lack of VPCId")
 	}
 	if a == nil {
+		if e.VSwitchId != nil && fi.StringValue(e.VSwitchId) != "" {
+			glog.V(2).Infof("Shared VSwitch with VSwitchID: %q", *e.VSwitchId)
+			return nil
+		}
+
 		glog.V(2).Infof("Creating VSwitch with CIDR: %q", *e.CidrBlock)
 
 		createVSwitchArgs := &ecs.CreateVSwitchArgs{
@@ -133,8 +170,6 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 			return fmt.Errorf("error creating VSwitch: %v", err)
 		}
 		e.VSwitchId = fi.String(vswitchId)
-	} else {
-		e.VSwitchId = a.VSwitchId
 	}
 
 	return nil

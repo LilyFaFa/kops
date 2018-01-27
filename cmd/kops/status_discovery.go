@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi/cloudup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awstasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
@@ -42,6 +43,10 @@ func (s *cloudDiscoveryStatusStore) GetApiIngressStatus(cluster *kops.Cluster) (
 
 	if gceCloud, ok := cloud.(gce.GCECloud); ok {
 		return gceCloud.GetApiIngressStatus(cluster)
+	}
+
+	if aliCloud, ok := cloud.(aliup.ALICloud); ok {
+		return aliCloud.GetApiIngressStatus(cluster)
 	}
 
 	if awsCloud, ok := cloud.(awsup.AWSCloud); ok {

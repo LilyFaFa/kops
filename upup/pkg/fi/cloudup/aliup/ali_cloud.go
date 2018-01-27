@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/golang/glog"
 
@@ -28,6 +29,7 @@ import (
 	ess "github.com/denverdino/aliyungo/ess"
 	ram "github.com/denverdino/aliyungo/ram"
 	slb "github.com/denverdino/aliyungo/slb"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/pkg/apis/kops"
@@ -53,6 +55,7 @@ type ALICloud interface {
 	CreateTags(resourceId string, resourceType string, tags map[string]string) error
 	RemoveTags(resourceId string, resourceType string, tags map[string]string) error
 	GetClusterTags() map[string]string
+	GetApiIngressStatus(cluster *kops.Cluster) ([]kops.ApiIngressStatus, error)
 }
 
 type aliCloudImplementation struct {
@@ -166,8 +169,14 @@ func (c *aliCloudImplementation) GetTags(resourceId string, resourceType string)
 
 // AddClusterTags will add ClusterTags to resources (in ALI, only disk, instance, snapshot or image can be tagged )
 func (c *aliCloudImplementation) AddClusterTags(tags map[string]string) {
-	for k, v := range c.tags {
-		tags[k] = v
+
+	if c.tags != nil && len(c.tags) != 0 {
+		if tags == nil {
+			tags = make(map[string]string)
+		}
+		for k, v := range c.tags {
+			tags[k] = v
+		}
 	}
 }
 
@@ -228,4 +237,128 @@ func (c *aliCloudImplementation) RemoveTags(resourceId string, resourceType stri
 // GetClusterTags will get the ClusterTags
 func (c *aliCloudImplementation) GetClusterTags() map[string]string {
 	return c.tags
+}
+
+func ZoneToVSwitchID(VPCID string, zones []string, vswitchIDs []string) (map[string]string, error) {
+	regionId, err := getRegionByZones(zones)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]string)
+	cloudTags := map[string]string{}
+	aliCloud, err := NewALICloud(regionId, cloudTags)
+	if err != nil {
+		return res, fmt.Errorf("error loading cloud: %v", err)
+	}
+
+	describeVpcsArgs := &ecs.DescribeVpcsArgs{
+		RegionId: common.Region(regionId),
+		VpcId:    VPCID,
+	}
+
+	vpc, _, err := aliCloud.EcsClient().DescribeVpcs(describeVpcsArgs)
+	if err != nil {
+		return res, fmt.Errorf("error describing VPC: %v", err)
+	}
+
+	if vpc == nil || len(vpc) == 0 {
+		return res, fmt.Errorf("VPC %q not found", VPCID)
+	}
+
+	if len(vpc) != 1 {
+		return nil, fmt.Errorf("found multiple VPCs for %q", VPCID)
+	}
+	subnetByID := make(map[string]string)
+	for _, VSId := range vpc[0].VSwitchIds.VSwitchId {
+		subnetByID[VSId] = VSId
+	}
+
+	for _, VSwitchId := range vswitchIDs {
+
+		_, ok := subnetByID[VSwitchId]
+		if !ok {
+			return res, fmt.Errorf("vswitch %s not found in VPC %s", VSwitchId, VPCID)
+		}
+		describeVSwitchesArgs := &ecs.DescribeVSwitchesArgs{
+			VpcId:     vpc[0].VpcId,
+			RegionId:  common.Region(regionId),
+			VSwitchId: VSwitchId,
+		}
+
+		vswitcheList, _, err := aliCloud.EcsClient().DescribeVSwitches(describeVSwitchesArgs)
+		if err != nil {
+			return nil, fmt.Errorf("error listing VSwitchs: %v", err)
+		}
+
+		if len(vswitcheList) == 0 {
+			return nil, fmt.Errorf("VSwitch %q not found", VSwitchId)
+		}
+
+		if len(vswitcheList) != 1 {
+			return nil, fmt.Errorf("found multiple VSwitchs for %q", VSwitchId)
+		}
+
+		zone := vswitcheList[0].ZoneId
+		if res[zone] != "" {
+			return res, fmt.Errorf("vswitch %s and %s have the same zone", vswitcheList[0].VSwitchId, zone)
+		}
+		res[zone] = vswitcheList[0].VSwitchId
+
+	}
+	return res, nil
+}
+
+func (c *aliCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]kops.ApiIngressStatus, error) {
+	var ingresses []kops.ApiIngressStatus
+	name := "api." + cluster.Name
+
+	describeLoadBalancersArgs := &slb.DescribeLoadBalancersArgs{
+		RegionId:         common.Region(c.Region()),
+		LoadBalancerName: name,
+	}
+
+	responseLoadBalancers, err := c.SlbClient().DescribeLoadBalancers(describeLoadBalancersArgs)
+	if err != nil {
+		return nil, fmt.Errorf("error finding LoadBalancers: %v", err)
+	}
+	// Don't exist loadbalancer with specified ClusterTags or Name.
+	if len(responseLoadBalancers) == 0 {
+		return nil, nil
+	}
+	if len(responseLoadBalancers) > 1 {
+		glog.V(4).Info("The number of specified loadbalancer whith the same name exceeds 1, loadbalancerName:%q", name)
+	}
+
+	address := responseLoadBalancers[0].Address
+	ingresses = append(ingresses, kops.ApiIngressStatus{IP: address})
+
+	return ingresses, nil
+}
+
+func getRegionByZones(zones []string) (string, error) {
+	region := ""
+
+	for _, zone := range zones {
+		zoneSplit := strings.Split(zone, "-")
+		zoneRegion := ""
+		if len(zoneSplit) != 3 {
+			return "", fmt.Errorf("invalid ALI zone: %q ", zone)
+		}
+
+		if len(zoneSplit[2]) == 1 {
+			zoneRegion = zoneSplit[0] + "-" + zoneSplit[1]
+		} else if len(zoneSplit[2]) == 2 {
+			zoneRegion = zone[:len(zone)-1]
+		} else {
+			return "", fmt.Errorf("invalid ALI zone: %q ", zone)
+		}
+
+		if region != "" && zoneRegion != region {
+			return "", fmt.Errorf("Clusters cannot span multiple regions (found zone %q, but region is %q)", zone, region)
+		}
+		region = zoneRegion
+	}
+
+	return region, nil
 }

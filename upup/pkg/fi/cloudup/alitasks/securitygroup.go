@@ -19,6 +19,8 @@ package alitasks
 import (
 	"fmt"
 
+	"github.com/golang/glog"
+
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
 
@@ -43,10 +45,15 @@ func (s *SecurityGroup) CompareWithID() *string {
 }
 
 func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
+	/*
+		if s.VPC == nil || s.VPC.ID == nil {
+			return nil, fmt.Errorf("error finding LoadBalancerListener, lack of VPCId")
+		}
+	*/
 	if s.VPC == nil || s.VPC.ID == nil {
-		return nil, fmt.Errorf("error finding LoadBalancerListener, lack of VPCId")
+		glog.V(4).Infof("VPC / VPCId not found for %s, skipping Find", fi.StringValue(s.Name))
+		return nil, nil
 	}
-
 	cloud := c.Cloud.(aliup.ALICloud)
 	describeSecurityGroupsArgs := &ecs.DescribeSecurityGroupsArgs{
 		RegionId: common.Region(cloud.Region()),
@@ -72,6 +79,7 @@ func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
 			// Ignore "system" fields
 			actual.Lifecycle = s.Lifecycle
 			actual.VPC = s.VPC
+			s.SecurityGroupId = actual.SecurityGroupId
 			return actual, nil
 		}
 	}
@@ -88,9 +96,11 @@ func (_ *SecurityGroup) CheckChanges(a, e, changes *SecurityGroup) error {
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.VPC.ID == nil {
-			return fi.RequiredField("VPCId")
-		}
+		/*
+			if e.VPC.ID == nil {
+				return fi.RequiredField("VPCId")
+			}
+		*/
 	} else {
 		if changes.Name != nil {
 			return fi.CannotChangeField("Name")
@@ -100,10 +110,11 @@ func (_ *SecurityGroup) CheckChanges(a, e, changes *SecurityGroup) error {
 }
 
 func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroup) error {
-	if e.VPC == nil || e.VPC.ID == nil {
-		return fmt.Errorf("error updating LoadBalancerListener, lack of VPCId")
-	}
-
+	/*
+		if e.VPC == nil || e.VPC.ID == nil {
+			return fmt.Errorf("error updating LoadBalancerListener, lack of VPCId")
+		}
+	*/
 	if a == nil {
 		createSecurityGroupArgs := &ecs.CreateSecurityGroupArgs{
 			RegionId:          common.Region(t.Cloud.Region()),
@@ -116,8 +127,6 @@ func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Security
 			return fmt.Errorf("error creating securityGroup: %v", err)
 		}
 		e.SecurityGroupId = fi.String(securityGroupId)
-	} else {
-		e.SecurityGroupId = a.SecurityGroupId
 	}
 
 	return nil

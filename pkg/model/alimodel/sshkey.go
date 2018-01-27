@@ -30,10 +30,7 @@ type SSHKeyModelBuilder struct {
 var _ fi.ModelBuilder = &SSHKeyModelBuilder{}
 
 func (b *SSHKeyModelBuilder) Build(c *fi.ModelBuilderContext) error {
-	name, err := b.SSHKeyName()
-	if err != nil {
-		return err
-	}
+	name := b.GetNameForSSHKey()
 	t := &alitasks.SSHKey{
 		Name:      s(name),
 		Lifecycle: b.Lifecycle,
