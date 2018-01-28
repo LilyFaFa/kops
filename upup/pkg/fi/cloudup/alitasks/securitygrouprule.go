@@ -151,17 +151,27 @@ func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Secu
 	*/
 	if a == nil {
 		if fi.BoolValue(e.In) == true {
+
 			authorizeSecurityGroupArgs := &ecs.AuthorizeSecurityGroupArgs{
 				SecurityGroupId: fi.StringValue(e.SecurityGroup.SecurityGroupId),
 				RegionId:        common.Region(t.Cloud.Region()),
 				IpProtocol:      ecs.IpProtocol(fi.StringValue(e.IpProtocol)),
 				PortRange:       fi.StringValue(e.PortRange),
-				SourceGroupId:   fi.StringValue(e.SourceGroup.SecurityGroupId),
+				//SourceGroupId:   fi.StringValue(e.SourceGroup.SecurityGroupId),
 			}
+
+			if e.SourceGroup != nil && e.SourceGroup.SecurityGroupId != nil {
+				authorizeSecurityGroupArgs.SourceGroupId = fi.StringValue(e.SourceGroup.SecurityGroupId)
+			}
+			if e.SourceCidrIp != nil {
+				authorizeSecurityGroupArgs.SourceCidrIp = fi.StringValue(e.SourceCidrIp)
+			}
+
 			err := t.Cloud.EcsClient().AuthorizeSecurityGroup(authorizeSecurityGroupArgs)
 			if err != nil {
 				return fmt.Errorf("error creating securityGroupRule: %v", err)
 			}
+
 		} else {
 			authorizeSecurityGroupEgressArgs := &ecs.AuthorizeSecurityGroupEgressArgs{
 				SecurityGroupId: fi.StringValue(e.SecurityGroup.SecurityGroupId),
@@ -169,6 +179,7 @@ func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Secu
 				IpProtocol:      ecs.IpProtocol(fi.StringValue(e.IpProtocol)),
 				PortRange:       fi.StringValue(e.PortRange),
 			}
+
 			err := t.Cloud.EcsClient().AuthorizeSecurityGroupEgress(authorizeSecurityGroupEgressArgs)
 			if err != nil {
 				return fmt.Errorf("error creating securityGroupRule: %v", err)

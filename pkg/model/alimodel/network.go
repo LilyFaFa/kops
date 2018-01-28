@@ -36,11 +36,9 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	vpc := &alitasks.VPC{}
 	{
 		vpcName := b.GetNameForVPC()
-		vpc = &alitasks.VPC{
-			Name:      s(vpcName),
-			Lifecycle: b.Lifecycle,
-			Shared:    fi.Bool(sharedVPC),
-		}
+		vpc.Name = s(vpcName)
+		vpc.Lifecycle = b.Lifecycle
+		vpc.Shared = fi.Bool(sharedVPC)
 
 		if b.Cluster.Spec.NetworkID != "" {
 			vpc.ID = s(b.Cluster.Spec.NetworkID)
@@ -59,7 +57,8 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		vswitch := &alitasks.VSwitch{
 			Name:      s(b.GetNameForVSwitch(subnetSpec.Name)),
 			Lifecycle: b.Lifecycle,
-			VPC:       vpc,
+			//VPC:       vpc,
+			VPC:       b.LinkToVPC(),
 			ZoneId:    s(subnetSpec.Zone),
 			CidrBlock: s(subnetSpec.CIDR),
 		}

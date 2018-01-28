@@ -100,10 +100,14 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create LoadBalancerWhiteList for API ELB
 	var loadbalancerwhiteList *alitasks.LoadBalancerWhiteList
 	{
+
 		sourceItems := ""
 		for _, cidr := range b.Cluster.Spec.KubernetesAPIAccess {
-			sourceItems = sourceItems + cidr + ","
+			if cidr != "0.0.0.0" && cidr != "0.0.0.0/0" {
+				sourceItems = sourceItems + cidr + ","
+			}
 		}
+
 		loadbalancerwhiteList = &alitasks.LoadBalancerWhiteList{
 			Name:                 s("api." + b.ClusterName()),
 			Lifecycle:            b.Lifecycle,
@@ -112,6 +116,7 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			SourceItems:          s(sourceItems),
 		}
 		c.AddTask(loadbalancerwhiteList)
+
 	}
 
 	// TODO: Should this be removed?

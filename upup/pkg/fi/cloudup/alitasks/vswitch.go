@@ -123,7 +123,7 @@ func (e *VSwitch) Run(c *fi.Context) error {
 
 func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error {
 	if e.VPC == nil || e.VPC.ID == nil {
-		return fmt.Errorf("error updating LoadBalancerWhiteList, lack of VPCId")
+		return fmt.Errorf("error updating VSwitch, lack of VPCId")
 	}
 	if a == nil {
 		glog.V(2).Infof("Creating VSwitch with CIDR: %q", *e.CidrBlock)

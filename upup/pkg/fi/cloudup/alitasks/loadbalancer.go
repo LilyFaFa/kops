@@ -42,6 +42,7 @@ type LoadBalancer struct {
 }
 
 var _ fi.CompareWithID = &LoadBalancer{}
+var _ fi.HasAddress = &LoadBalancer{}
 
 func (l *LoadBalancer) CompareWithID() *string {
 	return l.LoadbalancerId

@@ -59,6 +59,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
+				In:            fi.Bool(true),
 			}
 			c.AddTask(t)
 
@@ -69,6 +70,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				IpProtocol:    s(ipProtocolTCP),
 				PortRange:     s("22/22"),
 				SourceCidrIp:  s(sshAccess),
+				In:            fi.Bool(true),
 			}
 			c.AddTask(t)
 		}
@@ -92,6 +94,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			IpProtocol:    s(ipProtocolTCP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),
+			In:            fi.Bool(true),
 		}
 		c.AddTask(t)
 
@@ -102,6 +105,7 @@ func (b *ExternalAccessModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			IpProtocol:    s(ipProtocolUDP),
 			PortRange:     s(fromPort + "/" + toPort),
 			SourceCidrIp:  s(nodePortAccess),
+			In:            fi.Bool(true),
 		}
 		c.AddTask(t)
 	}

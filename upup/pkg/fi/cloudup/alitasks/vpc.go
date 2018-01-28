@@ -132,8 +132,9 @@ func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
 		if err != nil {
 			return fmt.Errorf("error creating VPC: %v", err)
 		}
-
 		e.ID = fi.String(response.VpcId)
+	} else {
+		e.ID = a.ID
 	}
 	return nil
 }
