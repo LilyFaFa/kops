@@ -52,6 +52,7 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	for i := range b.Cluster.Spec.Subnets {
 		subnetSpec := &b.Cluster.Spec.Subnets[i]
+
 		//subnetName := subnetSpec.Name + "." + b.ClusterName()
 
 		vswitch := &alitasks.VSwitch{
@@ -61,7 +62,14 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			VPC:       b.LinkToVPC(),
 			ZoneId:    s(subnetSpec.Zone),
 			CidrBlock: s(subnetSpec.CIDR),
+			Shared:    fi.Bool(false),
 		}
+
+		if subnetSpec.ProviderID != "" {
+			vswitch.VSwitchId = s(subnetSpec.ProviderID)
+			vswitch.Shared = fi.Bool(true)
+		}
+
 		c.AddTask(vswitch)
 
 	}

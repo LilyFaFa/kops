@@ -100,3 +100,21 @@ func (c *ALIModelContext) LinkToSSHKey() *alitasks.SSHKey {
 func (c *ALIModelContext) GetNameForSSHKey() string {
 	return "k8s.sshkey" + c.ClusterName()
 }
+
+func (c *ALIModelContext) GetAutoscalingGroupName(ig *kops.InstanceGroup) string {
+	switch ig.Spec.Role {
+	case kops.InstanceGroupRoleMaster:
+		// We need to keep this back-compatible, so we introduce the masters name,
+		// though the IG name suffices for uniqueness, and with sensible naming masters
+		// should be redundant...
+		return "masters." + c.ClusterName()
+	case kops.InstanceGroupRoleNode:
+		return "node." + c.ClusterName()
+	case kops.InstanceGroupRoleBastion:
+		return "bastion." + c.ClusterName()
+
+	default:
+		glog.Fatalf("unknown InstanceGroup Role: %v", ig.Spec.Role)
+		return ""
+	}
+}

@@ -39,6 +39,7 @@ type VSwitch struct {
 	CidrBlock *string
 	Region    *common.Region
 	VPC       *VPC
+	Shared    *bool
 }
 
 var _ fi.CompareWithID = &VSwitch{}
@@ -65,9 +66,33 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 		ZoneId:   fi.StringValue(v.ZoneId),
 	}
 
+	if v.VSwitchId != nil && fi.StringValue(v.VSwitchId) != "" {
+		describeVSwitchesArgs.VSwitchId = fi.StringValue(v.VSwitchId)
+	}
+
 	vswitcheList, _, err := cloud.EcsClient().DescribeVSwitches(describeVSwitchesArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error listing VSwitchs: %v", err)
+	}
+
+	if fi.BoolValue(v.Shared) {
+		if len(vswitcheList) != 1 {
+			return nil, fmt.Errorf("found multiple VSwitchs for %q", fi.StringValue(v.VSwitchId))
+		} else {
+			actual := &VSwitch{
+				Name:      fi.String(vswitcheList[0].VSwitchName),
+				VSwitchId: fi.String(vswitcheList[0].VSwitchId),
+				VPC: &VPC{
+					ID: fi.String(vswitcheList[0].VpcId),
+				},
+
+				ZoneId:    fi.String(vswitcheList[0].ZoneId),
+				CidrBlock: fi.String(vswitcheList[0].CidrBlock),
+				// Ignore "system" fields
+				Lifecycle: v.Lifecycle,
+			}
+			return actual, nil
+		}
 	}
 
 	if len(vswitcheList) == 0 {
@@ -75,7 +100,7 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 	}
 
 	for _, vswitch := range vswitcheList {
-		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) {
+		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) && !fi.BoolValue(v.Shared) {
 			actual := &VSwitch{
 				Name:      fi.String(vswitch.VSwitchName),
 				VSwitchId: fi.String(vswitch.VSwitchId),
@@ -89,7 +114,6 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 				Lifecycle: v.Lifecycle,
 			}
 			return actual, nil
-
 		}
 	}
 
@@ -126,6 +150,11 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 		return fmt.Errorf("error updating VSwitch, lack of VPCId")
 	}
 	if a == nil {
+		if e.VSwitchId != nil && fi.StringValue(e.VSwitchId) != "" {
+			glog.V(2).Infof("Shared VSwitch with VSwitchID: %q", *e.VSwitchId)
+			return nil
+		}
+
 		glog.V(2).Infof("Creating VSwitch with CIDR: %q", *e.CidrBlock)
 
 		createVSwitchArgs := &ecs.CreateVSwitchArgs{

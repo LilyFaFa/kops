@@ -17,6 +17,7 @@ limitations under the License.
 package alitasks
 
 import (
+	"encoding/json"
 	"fmt"
 
 	common "github.com/denverdino/aliyungo/common"
@@ -131,13 +132,21 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 			RegionId:         common.Region(t.Cloud.Region()),
 			MinSize:          e.MinSize,
 			MaxSize:          e.MaxSize,
-			LoadBalancerIds:  fi.StringValue(e.LoadBalancer.LoadbalancerId),
-			VSwitchIds:       vswitchs,
+			//LoadBalancerIds:  fi.StringValue(e.LoadBalancer.LoadbalancerId),
+			VSwitchIds: vswitchs,
 		}
+
+		if e.LoadBalancer != nil && e.LoadBalancer.LoadbalancerId != nil {
+			loadBalancerIds := []string{fi.StringValue(e.LoadBalancer.LoadbalancerId)}
+			loadBalancerId, _ := json.Marshal(loadBalancerIds)
+			createScalingGroupArgs.LoadBalancerIds = string(loadBalancerId)
+		}
+
 		createScalingGroupResponse, err := t.Cloud.EssClient().CreateScalingGroup(createScalingGroupArgs)
 		if err != nil {
 			return fmt.Errorf("error creating autoscalingGroup: %v", err)
 		}
+
 		e.ScalingGroupId = fi.String(createScalingGroupResponse.ScalingGroupId)
 	}
 

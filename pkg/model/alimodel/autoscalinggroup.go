@@ -43,7 +43,7 @@ var _ fi.ModelBuilder = &AutoscalingGroupModelBuilder{}
 func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	var err error
 	for _, ig := range b.InstanceGroups {
-		name := b.AutoscalingGroupName(ig)
+		name := b.GetAutoscalingGroupName(ig)
 
 		//Create AutoscalingGroup
 		var autoscalingGroup *alitasks.AutoscalingGroup
