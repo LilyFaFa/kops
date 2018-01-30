@@ -73,6 +73,7 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 				Shared:    e.Shared,
 				Lifecycle: e.Lifecycle,
 			}
+			e.ID = actual.ID
 			glog.V(4).Infof("found matching VPC %v", actual)
 			return actual, nil
 		}
@@ -92,6 +93,7 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 				Shared:    e.Shared,
 				Lifecycle: e.Lifecycle,
 			}
+			e.ID = actual.ID
 			glog.V(4).Infof("found matching VPC %v", actual)
 			return actual, nil
 		}
@@ -149,8 +151,6 @@ func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
 			return fmt.Errorf("error creating VPC: %v", err)
 		}
 		e.ID = fi.String(response.VpcId)
-	} else {
-		e.ID = a.ID
 	}
 	return nil
 }

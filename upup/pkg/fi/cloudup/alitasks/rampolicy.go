@@ -107,6 +107,9 @@ func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) e
 		if err != nil {
 			return fmt.Errorf("error creating RAMPolicy: %v", err)
 		}
+	} else {
+		policyRequest.PolicyType = ram.Type(fi.StringValue(a.PolicyType))
+		policyRequest.PolicyName = fi.StringValue(a.Name)
 	}
 
 	attachPolicyRequest := ram.AttachPolicyToRoleRequest{

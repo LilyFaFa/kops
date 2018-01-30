@@ -75,6 +75,7 @@ func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error
 	// Ignore "system" fields
 	actual.LoadBalancer = l.LoadBalancer
 	actual.Lifecycle = l.Lifecycle
+	actual.Name = l.Name
 	return actual, nil
 }
 

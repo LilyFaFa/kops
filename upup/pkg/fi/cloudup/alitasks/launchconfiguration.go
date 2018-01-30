@@ -220,9 +220,11 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 		ScalingGroupId:               fi.StringValue(e.AutoscalingGroup.ScalingGroupId),
 		ActiveScalingConfigurationId: fi.StringValue(e.ConfigurationId),
 	}
+
 	_, err = t.Cloud.EssClient().EnableScalingGroup(enableScalingGroupArgs)
 	if err != nil {
 		return fmt.Errorf("error enabling scalingGroup: %v", err)
 	}
+
 	return nil
 }

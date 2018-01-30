@@ -91,6 +91,7 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 		}
 	}
 	// Ignore "system" fields
+	l.LoadbalancerId = actual.LoadbalancerId
 	actual.Lifecycle = l.Lifecycle
 	return actual, nil
 }
@@ -157,8 +158,6 @@ func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalan
 		}
 		e.LoadbalancerId = fi.String(response.LoadBalancerId)
 		e.LoadBalancerAddress = fi.String(response.Address)
-	} else {
-		e.LoadbalancerId = a.LoadbalancerId
 	}
 
 	if changes.Tags != nil {

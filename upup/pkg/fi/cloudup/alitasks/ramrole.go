@@ -64,6 +64,7 @@ func (r *RAMRole) Find(c *fi.Context) (*RAMRole, error) {
 
 			// Ignore "system" fields
 			actual.Lifecycle = r.Lifecycle
+			r.RAMRoleId = actual.RAMRoleId
 			return actual, nil
 		}
 	}
@@ -83,10 +84,6 @@ func (_ *RAMRole) CheckChanges(a, e, changes *RAMRole) error {
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-	} else {
-		if changes.AssumeRolePolicyDocument != nil {
-			return fi.CannotChangeField("AssumeRolePolicyDocument")
-		}
 	}
 	return nil
 }
@@ -104,8 +101,6 @@ func (_ *RAMRole) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMRole) error
 		}
 
 		e.RAMRoleId = fi.String(roleResponse.Role.RoleId)
-	} else {
-		e.RAMRoleId = a.RAMRoleId
 	}
 
 	return nil

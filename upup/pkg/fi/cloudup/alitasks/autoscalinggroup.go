@@ -72,6 +72,7 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	actual.Name = fi.String(groupList[0].ScalingGroupName)
 	actual.MinSize = fi.Int(groupList[0].MinSize)
 	actual.MaxSize = fi.Int(groupList[0].MaxSize)
+	actual.ScalingGroupId = fi.String(groupList[0].ScalingGroupId)
 	actual.LoadBalancer = &LoadBalancer{
 		LoadbalancerId: fi.String(groupList[0].LoadBalancerId),
 	}
@@ -85,6 +86,7 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	}
 
 	// Ignore "system" fields
+	a.ScalingGroupId = actual.ScalingGroupId
 	actual.Lifecycle = a.Lifecycle
 	return actual, nil
 }

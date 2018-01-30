@@ -47,6 +47,7 @@ const (
 
 	defaultVSphereNodeImage = "kops_ubuntu_16_04.ova"
 	defaultDONodeImage      = "coreos-stable"
+	defaultALINodeImage     = "centos_7_04_64_20G_alibase_201701015.vhd"
 )
 
 var awsDedicatedInstanceExceptions = map[string]bool{
@@ -245,6 +246,8 @@ func defaultImage(cluster *kops.Cluster, channel *kops.Channel) string {
 		return defaultDONodeImage
 	case kops.CloudProviderVSphere:
 		return defaultVSphereNodeImage
+	case kops.CloudProviderALI:
+		return defaultALINodeImage
 	}
 
 	glog.Infof("Cannot set default Image for CloudProvider=%q", cluster.Spec.CloudProvider)

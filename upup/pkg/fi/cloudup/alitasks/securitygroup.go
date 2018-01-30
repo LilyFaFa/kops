@@ -79,6 +79,7 @@ func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
 			// Ignore "system" fields
 			actual.Lifecycle = s.Lifecycle
 			actual.VPC = s.VPC
+			s.SecurityGroupId = actual.SecurityGroupId
 			return actual, nil
 		}
 	}
@@ -126,8 +127,6 @@ func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Security
 			return fmt.Errorf("error creating securityGroup: %v", err)
 		}
 		e.SecurityGroupId = fi.String(securityGroupId)
-	} else {
-		e.SecurityGroupId = a.SecurityGroupId
 	}
 
 	return nil

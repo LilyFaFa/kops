@@ -113,6 +113,7 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 				// Ignore "system" fields
 				Lifecycle: v.Lifecycle,
 			}
+			v.VSwitchId = actual.VSwitchId
 			return actual, nil
 		}
 	}
@@ -169,8 +170,6 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 			return fmt.Errorf("error creating VSwitch: %v", err)
 		}
 		e.VSwitchId = fi.String(vswitchId)
-	} else {
-		e.VSwitchId = a.VSwitchId
 	}
 
 	return nil
