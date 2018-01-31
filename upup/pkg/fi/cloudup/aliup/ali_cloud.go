@@ -29,6 +29,7 @@ import (
 	ess "github.com/denverdino/aliyungo/ess"
 	ram "github.com/denverdino/aliyungo/ram"
 	slb "github.com/denverdino/aliyungo/slb"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/pkg/apis/kops"
@@ -54,6 +55,7 @@ type ALICloud interface {
 	CreateTags(resourceId string, resourceType string, tags map[string]string) error
 	RemoveTags(resourceId string, resourceType string, tags map[string]string) error
 	GetClusterTags() map[string]string
+	GetApiIngressStatus(cluster *kops.Cluster) ([]kops.ApiIngressStatus, error)
 }
 
 type aliCloudImplementation struct {
@@ -305,6 +307,33 @@ func ZoneToVSwitchID(VPCID string, zones []string, vswitchIDs []string) (map[str
 
 	}
 	return res, nil
+}
+
+func (c *aliCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]kops.ApiIngressStatus, error) {
+	var ingresses []kops.ApiIngressStatus
+	name := "api." + cluster.Name
+
+	describeLoadBalancersArgs := &slb.DescribeLoadBalancersArgs{
+		RegionId:         common.Region(c.Region()),
+		LoadBalancerName: name,
+	}
+
+	responseLoadBalancers, err := c.SlbClient().DescribeLoadBalancers(describeLoadBalancersArgs)
+	if err != nil {
+		return nil, fmt.Errorf("error finding LoadBalancers: %v", err)
+	}
+	// Don't exist loadbalancer with specified ClusterTags or Name.
+	if len(responseLoadBalancers) == 0 {
+		return nil, nil
+	}
+	if len(responseLoadBalancers) > 1 {
+		glog.V(4).Info("The number of specified loadbalancer whith the same name exceeds 1, loadbalancerName:%q", name)
+	}
+
+	address := responseLoadBalancers[0].Address
+	ingresses = append(ingresses, kops.ApiIngressStatus{IP: address})
+
+	return ingresses, nil
 }
 
 func getRegionByZones(zones []string) (string, error) {

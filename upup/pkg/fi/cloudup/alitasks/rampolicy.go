@@ -95,7 +95,9 @@ func (_ *RAMPolicy) CheckChanges(a, e, changes *RAMPolicy) error {
 }
 
 func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) error {
+
 	policyRequest := ram.PolicyRequest{}
+
 	if a == nil {
 		policyRequest = ram.PolicyRequest{
 			PolicyName:     fi.StringValue(e.Name),
@@ -107,19 +109,19 @@ func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) e
 		if err != nil {
 			return fmt.Errorf("error creating RAMPolicy: %v", err)
 		}
-	} else {
-		policyRequest.PolicyType = ram.Type(fi.StringValue(a.PolicyType))
-		policyRequest.PolicyName = fi.StringValue(a.Name)
+
+		attachPolicyRequest := ram.AttachPolicyToRoleRequest{
+			PolicyRequest: policyRequest,
+			RoleName:      fi.StringValue(e.RamRole.Name),
+		}
+
+		_, err = t.Cloud.RamClient().AttachPolicyToRole(attachPolicyRequest)
+		if err != nil {
+			return fmt.Errorf("error attaching RAMPolicy to RAMRole: %v", err)
+		}
+		return nil
 	}
 
-	attachPolicyRequest := ram.AttachPolicyToRoleRequest{
-		PolicyRequest: policyRequest,
-		RoleName:      fi.StringValue(e.RamRole.Name),
-	}
-
-	_, err := t.Cloud.RamClient().AttachPolicyToRole(attachPolicyRequest)
-	if err != nil {
-		return fmt.Errorf("error attaching RAMPolicy to RAMRole: %v", err)
-	}
 	return nil
+
 }

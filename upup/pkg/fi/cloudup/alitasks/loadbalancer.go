@@ -105,10 +105,12 @@ func (l *LoadBalancer) FindIPAddress(context *fi.Context) (*string, error) {
 		LoadBalancerName: fi.StringValue(l.Name),
 		AddressType:      slb.AddressType(fi.StringValue(l.AddressType)),
 	}
+
 	responseLoadBalancers, err := cloud.SlbClient().DescribeLoadBalancers(describeLoadBalancersArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error finding LoadBalancers: %v", err)
 	}
+
 	// Don't exist loadbalancer with specified ClusterTags or Name.
 	if len(responseLoadBalancers) == 0 {
 		return nil, nil
@@ -116,6 +118,7 @@ func (l *LoadBalancer) FindIPAddress(context *fi.Context) (*string, error) {
 	if len(responseLoadBalancers) > 1 {
 		glog.V(4).Info("The number of specified loadbalancer whith the same name exceeds 1, loadbalancerName:%q", *l.Name)
 	}
+
 	address := responseLoadBalancers[0].Address
 	return &address, nil
 }

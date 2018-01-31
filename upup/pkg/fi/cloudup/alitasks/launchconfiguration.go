@@ -189,11 +189,11 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 	}
 
 	if e.UserData != nil {
-		d, err := e.UserData.AsBytes()
+		userData, err := e.UserData.AsString()
 		if err != nil {
 			return fmt.Errorf("error rendering AutoScalingLaunchConfiguration UserData: %v", err)
 		}
-		userData := base64.StdEncoding.EncodeToString(d)
+		//userData := base64.StdEncoding.EncodeToString(d)
 		createScalingConfiguration.UserData = userData
 	}
 
@@ -214,6 +214,18 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 		return fmt.Errorf("error creating scalingConfiguration: %v", err)
 	}
 	e.ConfigurationId = fi.String(createScalingConfigurationResponse.ScalingConfigurationId)
+
+	// Disable ScalingGroup, used to bind scalingConfig, we should excute EnableScalingGroup in the task LaunchConfiguration
+	// If the ScalingGroup is active, we can not excute EnableScalingGroup.
+	if e.AutoscalingGroup.Active != nil && fi.BoolValue(e.AutoscalingGroup.Active) {
+		disableScalingGroupArgs := &ess.DisableScalingGroupArgs{
+			ScalingGroupId: fi.StringValue(e.AutoscalingGroup.ScalingGroupId),
+		}
+		_, err := t.Cloud.EssClient().DisableScalingGroup(disableScalingGroupArgs)
+		if err != nil {
+			return fmt.Errorf("error disabling autoscalingGroup: %v", err)
+		}
+	}
 
 	//Enable this configuration
 	enableScalingGroupArgs := &ess.EnableScalingGroupArgs{

@@ -39,6 +39,7 @@ type AutoscalingGroup struct {
 	VSwitchs       []*VSwitch
 	MinSize        *int
 	MaxSize        *int
+	Active         *bool
 }
 
 var _ fi.CompareWithID = &AutoscalingGroup{}
@@ -64,6 +65,7 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	if len(groupList) == 0 {
 		return nil, nil
 	}
+
 	if len(groupList) > 1 {
 		glog.V(4).Info("The number of specified scalingGroup whith the same name and ClusterTags exceeds 1, diskName:%q", *a.Name)
 	}
@@ -73,6 +75,8 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	actual.MinSize = fi.Int(groupList[0].MinSize)
 	actual.MaxSize = fi.Int(groupList[0].MaxSize)
 	actual.ScalingGroupId = fi.String(groupList[0].ScalingGroupId)
+	actual.Active = fi.Bool(groupList[0].LifecycleState == ess.Active)
+
 	actual.LoadBalancer = &LoadBalancer{
 		LoadbalancerId: fi.String(groupList[0].LoadBalancerId),
 	}
@@ -87,8 +91,10 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 
 	// Ignore "system" fields
 	a.ScalingGroupId = actual.ScalingGroupId
+	a.Active = actual.Active
 	actual.Lifecycle = a.Lifecycle
 	return actual, nil
+
 }
 
 func (a *AutoscalingGroup) Run(c *fi.Context) error {
@@ -134,8 +140,7 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 			RegionId:         common.Region(t.Cloud.Region()),
 			MinSize:          e.MinSize,
 			MaxSize:          e.MaxSize,
-			//LoadBalancerIds:  fi.StringValue(e.LoadBalancer.LoadbalancerId),
-			VSwitchIds: vswitchs,
+			VSwitchIds:       vswitchs,
 		}
 
 		if e.LoadBalancer != nil && e.LoadBalancer.LoadbalancerId != nil {
@@ -150,6 +155,21 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 		}
 
 		e.ScalingGroupId = fi.String(createScalingGroupResponse.ScalingGroupId)
+		e.Active = fi.Bool(false)
+
+	} else {
+		//only support to update size
+		if changes.MaxSize != nil || changes.MaxSize != nil {
+			modifyScalingGroupArgs := &ess.ModifyScalingGroupArgs{
+				ScalingGroupId: fi.StringValue(a.ScalingGroupId),
+				MinSize:        e.MinSize,
+				MaxSize:        e.MaxSize,
+			}
+			_, err := t.Cloud.EssClient().ModifyScalingGroup(modifyScalingGroupArgs)
+			if err != nil {
+				return fmt.Errorf("error modifing autoscalingGroup: %v", err)
+			}
+		}
 	}
 
 	return nil

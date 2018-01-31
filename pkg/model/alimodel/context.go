@@ -17,11 +17,15 @@ limitations under the License.
 package alimodel
 
 import (
+	"strings"
+
 	"github.com/golang/glog"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/model"
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
+
+const CloudTagInstanceGroupRolePrefix = "k8s.io/role/"
 
 type ALIModelContext struct {
 	*model.KopsModelContext
@@ -61,18 +65,22 @@ func (c *ALIModelContext) LinkToRAMRole(role kops.InstanceGroupRole) *alitasks.R
 }
 
 func (c *ALIModelContext) GetNameForRAM(role kops.InstanceGroupRole) string {
+	name := ""
 	switch role {
 	case kops.InstanceGroupRoleMaster:
-		return "masters." + c.ClusterName()
+		name = "masters." + c.ClusterName()
 	case kops.InstanceGroupRoleBastion:
-		return "bastions." + c.ClusterName()
+		name = "bastions." + c.ClusterName()
 	case kops.InstanceGroupRoleNode:
-		return "nodes." + c.ClusterName()
+		name = "nodes." + c.ClusterName()
 
 	default:
 		glog.Fatalf("unknown InstanceGroup Role: %q", role)
 		return ""
 	}
+
+	name = strings.Replace(name, ".", "-", -1)
+	return name
 }
 
 // LinkToVSwitch returns the VSwitch object the cluster is located in
@@ -117,4 +125,53 @@ func (c *ALIModelContext) GetAutoscalingGroupName(ig *kops.InstanceGroup) string
 		glog.Fatalf("unknown InstanceGroup Role: %v", ig.Spec.Role)
 		return ""
 	}
+}
+
+func (c *ALIModelContext) LinkToAutoscalingGroup(ig *kops.InstanceGroup) *alitasks.AutoscalingGroup {
+	return &alitasks.AutoscalingGroup{Name: s(c.GetAutoscalingGroupName(ig))}
+}
+
+// CloudTagsForInstanceGroup computes the tags to apply to instances in the specified InstanceGroup
+// Copy from contex.go, adjust parameters length to meet AliCloud requirements
+func (c *ALIModelContext) CloudTagsForInstanceGroup(ig *kops.InstanceGroup) (map[string]string, error) {
+	labels := make(map[string]string)
+
+	// Apply any user-specified global labels first so they can be overridden by IG-specific labels
+	for k, v := range c.Cluster.Spec.CloudLabels {
+		labels[k] = v
+	}
+
+	// Apply any user-specified labels
+	for k, v := range ig.Spec.CloudLabels {
+		labels[k] = v
+	}
+
+	// Apply labels for cluster autoscaler node labels
+	for k, v := range ig.Spec.NodeLabels {
+		labels[k] = v
+	}
+
+	// Apply labels for cluster autoscaler node taints
+	for _, v := range ig.Spec.Taints {
+		splits := strings.SplitN(v, "=", 2)
+		if len(splits) > 1 {
+			labels[splits[0]] = splits[1]
+		}
+	}
+
+	// The system tags take priority because the cluster likely breaks without them...
+
+	if ig.Spec.Role == kops.InstanceGroupRoleMaster {
+		labels[CloudTagInstanceGroupRolePrefix+strings.ToLower(string(kops.InstanceGroupRoleMaster))] = "1"
+	}
+
+	if ig.Spec.Role == kops.InstanceGroupRoleNode {
+		labels[CloudTagInstanceGroupRolePrefix+strings.ToLower(string(kops.InstanceGroupRoleNode))] = "1"
+	}
+
+	if ig.Spec.Role == kops.InstanceGroupRoleBastion {
+		labels[CloudTagInstanceGroupRolePrefix+strings.ToLower(string(kops.InstanceGroupRoleBastion))] = "1"
+	}
+
+	return labels, nil
 }

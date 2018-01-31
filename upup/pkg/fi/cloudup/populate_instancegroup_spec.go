@@ -34,16 +34,16 @@ const (
 	defaultNodeMachineTypeGCE     = "n1-standard-2"
 	defaultNodeMachineTypeVSphere = "vsphere_node"
 	defaultNodeMachineTypeDO      = "2gb"
-	defaultNodeMachineTypeALI     = "ecs.n4.xlarge"
+	defaultNodeMachineTypeALI     = "ecs.n2.medium"
 
 	defaultBastionMachineTypeGCE     = "f1-micro"
 	defaultBastionMachineTypeVSphere = "vsphere_bastion"
-	defaultBastionMachineTypeALI     = "ecs.n4.small"
+	defaultBastionMachineTypeALI     = "ecs.n2.small"
 
 	defaultMasterMachineTypeGCE     = "n1-standard-1"
 	defaultMasterMachineTypeVSphere = "vsphere_master"
 	defaultMasterMachineTypeDO      = "2gb"
-	defaultMasterMachineTypeALI     = "ecs.n4.xlarge"
+	defaultMasterMachineTypeALI     = "ecs.n2.medium"
 
 	defaultVSphereNodeImage = "kops_ubuntu_16_04.ova"
 	defaultDONodeImage      = "coreos-stable"

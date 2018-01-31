@@ -26,8 +26,8 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
 
-const DefaultVolumeType = "cloud"
-const DefaultInstanceType = "ecs.g5.large"
+const DefaultVolumeType = "cloud_ssd"
+const DefaultInstanceType = "ecs.n2.medium"
 
 // AutoscalingGroupModelBuilder configures AutoscalingGroup objects
 type AutoscalingGroupModelBuilder struct {
@@ -115,7 +115,7 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			launchConfiguration = &alitasks.LaunchConfiguration{
 				Name:             s(name),
 				Lifecycle:        b.Lifecycle,
-				AutoscalingGroup: autoscalingGroup,
+				AutoscalingGroup: b.LinkToAutoscalingGroup(ig),
 				SecurityGroup:    b.LinkToSecurityGroup(ig.Spec.Role),
 				RAMRole:          b.LinkToRAMRole(ig.Spec.Role),
 
