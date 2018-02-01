@@ -54,10 +54,10 @@ func NewAliOSSClient() (*oss.Client, error) {
 }
 
 func (c *aliyunOSSConfig) loadConfig() error {
-	c.region = oss.Region(os.Getenv("ALIYUN_REGION"))
+	c.region = oss.Region(os.Getenv("OSS_REGION"))
 	if c.region == "" {
 		// TODO: use default region
-		return fmt.Errorf("ALIYUN_REGION cannot be empty")
+		return fmt.Errorf("OSS_REGION cannot be empty")
 	}
 	c.accessKeyId = os.Getenv("ALIYUN_ACCESS_KEY_ID")
 	if c.accessKeyId == "" {
