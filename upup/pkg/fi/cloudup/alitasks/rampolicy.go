@@ -86,15 +86,18 @@ func (_ *RAMPolicy) CheckChanges(a, e, changes *RAMPolicy) error {
 	if e.Name == nil {
 		return fi.RequiredField("Name")
 	}
-
-	if e.RamRole == nil || e.RamRole.RAMRoleId == nil {
-		return fi.RequiredField("RAMRoleId")
-	}
+	/*
+		if e.RamRole == nil || e.RamRole.RAMRoleId == nil {
+			return fi.RequiredField("RAMRoleId")
+		}
+	*/
 	return nil
 }
 
 func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) error {
+
 	policyRequest := ram.PolicyRequest{}
+
 	if a == nil {
 		policyRequest = ram.PolicyRequest{
 			PolicyName:     fi.StringValue(e.Name),
@@ -106,16 +109,19 @@ func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) e
 		if err != nil {
 			return fmt.Errorf("error creating RAMPolicy: %v", err)
 		}
+
+		attachPolicyRequest := ram.AttachPolicyToRoleRequest{
+			PolicyRequest: policyRequest,
+			RoleName:      fi.StringValue(e.RamRole.Name),
+		}
+
+		_, err = t.Cloud.RamClient().AttachPolicyToRole(attachPolicyRequest)
+		if err != nil {
+			return fmt.Errorf("error attaching RAMPolicy to RAMRole: %v", err)
+		}
+		return nil
 	}
 
-	attachPolicyRequest := ram.AttachPolicyToRoleRequest{
-		PolicyRequest: policyRequest,
-		RoleName:      fi.StringValue(e.RamRole.Name),
-	}
-
-	_, err := t.Cloud.RamClient().AttachPolicyToRole(attachPolicyRequest)
-	if err != nil {
-		return fmt.Errorf("error attaching RAMPolicy to RAMRole: %v", err)
-	}
 	return nil
+
 }

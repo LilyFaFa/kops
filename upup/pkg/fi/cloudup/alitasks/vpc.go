@@ -61,16 +61,29 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 		return nil, fmt.Errorf("error listing VPCs: %v", err)
 	}
 
+	if fi.BoolValue(e.Shared) {
+		if len(vpcs) != 1 {
+			return nil, fmt.Errorf("found multiple VPCs for %q", fi.StringValue(e.ID))
+		} else {
+			actual := &VPC{
+				ID:        fi.String(vpcs[0].VpcId),
+				CIDR:      fi.String(vpcs[0].CidrBlock),
+				Name:      fi.String(vpcs[0].VpcName),
+				Region:    fi.String(cloud.Region()),
+				Shared:    e.Shared,
+				Lifecycle: e.Lifecycle,
+			}
+			e.ID = actual.ID
+			glog.V(4).Infof("found matching VPC %v", actual)
+			return actual, nil
+		}
+	}
+
 	if vpcs == nil || len(vpcs) == 0 {
 		return nil, nil
 	}
 
-	if len(vpcs) != 1 {
-		return nil, fmt.Errorf("found multiple VPCs for %q", fi.StringValue(e.ID))
-	}
-
 	for _, vpc := range vpcs {
-
 		if vpc.CidrBlock == fi.StringValue(e.CIDR) {
 			actual := &VPC{
 				ID:        fi.String(vpc.VpcId),
@@ -80,6 +93,7 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 				Shared:    e.Shared,
 				Lifecycle: e.Lifecycle,
 			}
+			e.ID = actual.ID
 			glog.V(4).Infof("found matching VPC %v", actual)
 			return actual, nil
 		}
@@ -121,6 +135,10 @@ func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
 	}
 
 	if a == nil {
+		if e.ID != nil && fi.StringValue(e.ID) != "" {
+			glog.V(2).Infof("Shared VPC with VPCID: %q", *e.ID)
+			return nil
+		}
 		glog.V(2).Infof("Creating VPC with CIDR: %q", *e.CIDR)
 
 		request := &ecs.CreateVpcArgs{
@@ -132,7 +150,6 @@ func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
 		if err != nil {
 			return fmt.Errorf("error creating VPC: %v", err)
 		}
-
 		e.ID = fi.String(response.VpcId)
 	}
 	return nil

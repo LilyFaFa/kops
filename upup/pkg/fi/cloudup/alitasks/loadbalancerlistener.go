@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/golang/glog"
+
 	slb "github.com/denverdino/aliyungo/slb"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
@@ -47,10 +49,15 @@ func (l *LoadBalancerListener) CompareWithID() *string {
 }
 
 func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error) {
+	/*
+		if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
+			return nil, fmt.Errorf("error finding LoadBalancerListener, lack of LoadBalancerId")
+		}
+	*/
 	if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
-		return nil, fmt.Errorf("error finding LoadBalancerListener, lack of LoadBalancerId")
+		glog.V(4).Infof("LoadBalancer / LoadbalancerId not found for %s, skipping Find", fi.StringValue(l.Name))
+		return nil, nil
 	}
-
 	cloud := c.Cloud.(aliup.ALICloud)
 	loadBalancerId := fi.StringValue(l.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(l.ListenerPort)
@@ -68,6 +75,7 @@ func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error
 	// Ignore "system" fields
 	actual.LoadBalancer = l.LoadBalancer
 	actual.Lifecycle = l.Lifecycle
+	actual.Name = l.Name
 	return actual, nil
 }
 
@@ -80,9 +88,11 @@ func (_ *LoadBalancerListener) CheckChanges(a, e, changes *LoadBalancerListener)
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-			return fi.RequiredField("LoadBalnacerId")
-		}
+		/*
+			if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
+				return fi.RequiredField("LoadBalnacerId")
+			}
+		*/
 		if e.ListenerPort == nil {
 			return fi.RequiredField("ListenerPort")
 		}
@@ -102,10 +112,11 @@ func (_ *LoadBalancerListener) CheckChanges(a, e, changes *LoadBalancerListener)
 
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancerListener) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerListener) error {
-	if e.LoadBalancer.LoadbalancerId == nil {
-		return fmt.Errorf("error updating LoadBalancerListener, lack of LoadBalnacerId")
-	}
-
+	/*
+		if e.LoadBalancer.LoadbalancerId == nil {
+			return fmt.Errorf("error updating LoadBalancerListener, lack of LoadBalnacerId")
+		}
+	*/
 	loadBalancerId := fi.StringValue(e.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(e.ListenerPort)
 	if a == nil {

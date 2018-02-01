@@ -26,8 +26,8 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
 
-const DefaultVolumeType = "cloud"
-const DefaultInstanceType = "ecs.g5.large"
+const DefaultVolumeType = "cloud_ssd"
+const DefaultInstanceType = "ecs.n2.medium"
 
 // AutoscalingGroupModelBuilder configures AutoscalingGroup objects
 type AutoscalingGroupModelBuilder struct {
@@ -43,7 +43,7 @@ var _ fi.ModelBuilder = &AutoscalingGroupModelBuilder{}
 func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	var err error
 	for _, ig := range b.InstanceGroups {
-		name := b.AutoscalingGroupName(ig)
+		name := b.GetAutoscalingGroupName(ig)
 
 		//Create AutoscalingGroup
 		var autoscalingGroup *alitasks.AutoscalingGroup
@@ -115,8 +115,8 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 			launchConfiguration = &alitasks.LaunchConfiguration{
 				Name:             s(name),
 				Lifecycle:        b.Lifecycle,
-				AutoscalingGroup: autoscalingGroup,
-				SecurityGroup:    b.LinkToSecurityGroup(string(ig.Spec.Role)),
+				AutoscalingGroup: b.LinkToAutoscalingGroup(ig),
+				SecurityGroup:    b.LinkToSecurityGroup(ig.Spec.Role),
 				RAMRole:          b.LinkToRAMRole(ig.Spec.Role),
 
 				ImageId:            s(ig.Spec.Image),
@@ -126,11 +126,10 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 				Tags:               tags,
 			}
 
-			sshkey, err := b.SSHKeyName()
 			if err != nil {
 				return err
 			} else {
-				launchConfiguration.SSHKey = b.LinkToSSHKey(sshkey)
+				launchConfiguration.SSHKey = b.LinkToSSHKey()
 			}
 			if launchConfiguration.UserData, err = b.BootstrapScript.ResourceNodeUp(ig, &b.Cluster.Spec); err != nil {
 				return err

@@ -17,6 +17,7 @@ limitations under the License.
 package alimodel
 
 import (
+	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
 )
@@ -36,7 +37,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create nodeInstances security group
 	var nodeSecurityGroup *alitasks.SecurityGroup
 	{
-		groupName := b.GetNameForSecurityGroup("node")
+		groupName := b.GetNameForSecurityGroup(kops.InstanceGroupRoleNode)
 		nodeSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,
@@ -48,7 +49,7 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create masterInstances security group
 	var masterSecurityGroup *alitasks.SecurityGroup
 	{
-		groupName := b.GetNameForSecurityGroup("master")
+		groupName := b.GetNameForSecurityGroup(kops.InstanceGroupRoleMaster)
 		masterSecurityGroup = &alitasks.SecurityGroup{
 			Name:      s(groupName),
 			Lifecycle: b.Lifecycle,
@@ -60,31 +61,35 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	// Create rules for nodeInstances security group
 	// Allow full egress for nodes
 	ipProtocolAll := IpProtocolAll
-	{
-		nodeSecurityGroupRules := &alitasks.SecurityGroupRule{
-			Name:          s("node-egress"),
-			Lifecycle:     b.Lifecycle,
-			IpProtocol:    s(ipProtocolAll),
-			SecurityGroup: nodeSecurityGroup,
-			PortRange:     s("-1/-1"),
-			In:            fi.Bool(false),
+	/*
+		{
+			nodeSecurityGroupRules := &alitasks.SecurityGroupRule{
+				Name:          s("node-egress"),
+				Lifecycle:     b.Lifecycle,
+				IpProtocol:    s(ipProtocolAll),
+				SecurityGroup: nodeSecurityGroup,
+				PortRange:     s("-1/-1"),
+				In:            fi.Bool(false),
+			}
+			c.AddTask(nodeSecurityGroupRules)
 		}
-		c.AddTask(nodeSecurityGroupRules)
-	}
+	*/
 
 	// Allow traffic from nodes to nodes
-	{
-		nodeSecurityGroupRules := &alitasks.SecurityGroupRule{
-			Name:          s("node-to-node"),
-			Lifecycle:     b.Lifecycle,
-			IpProtocol:    s(ipProtocolAll),
-			SecurityGroup: nodeSecurityGroup,
-			SourceGroup:   nodeSecurityGroup,
-			PortRange:     s("-1/-1"),
-			In:            fi.Bool(true),
+	/*
+		{
+			nodeSecurityGroupRules := &alitasks.SecurityGroupRule{
+				Name:          s("node-to-node"),
+				Lifecycle:     b.Lifecycle,
+				IpProtocol:    s(ipProtocolAll),
+				SecurityGroup: nodeSecurityGroup,
+				SourceGroup:   nodeSecurityGroup,
+				PortRange:     s("-1/-1"),
+				In:            fi.Bool(true),
+			}
+			c.AddTask(nodeSecurityGroupRules)
 		}
-		c.AddTask(nodeSecurityGroupRules)
-	}
+	*/
 
 	// Allow traffic from masters to nodes
 	{
@@ -101,31 +106,34 @@ func (b *FirewallModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	}
 
 	// Allow full egress for masters
-	{
-		masterSecurityGroupRules := &alitasks.SecurityGroupRule{
-			Name:          s("master-egress"),
-			Lifecycle:     b.Lifecycle,
-			IpProtocol:    s(ipProtocolAll),
-			SecurityGroup: masterSecurityGroup,
-			PortRange:     s("-1/-1"),
-			In:            fi.Bool(false),
+	/*
+		{
+			masterSecurityGroupRules := &alitasks.SecurityGroupRule{
+				Name:          s("master-egress"),
+				Lifecycle:     b.Lifecycle,
+				IpProtocol:    s(ipProtocolAll),
+				SecurityGroup: masterSecurityGroup,
+				PortRange:     s("-1/-1"),
+				In:            fi.Bool(false),
+			}
+			c.AddTask(masterSecurityGroupRules)
 		}
-		c.AddTask(masterSecurityGroupRules)
-	}
-
+	*/
 	// Allow traffic from masters to masters
-	{
-		masterSecurityGroupRules := &alitasks.SecurityGroupRule{
-			Name:          s("master-master"),
-			Lifecycle:     b.Lifecycle,
-			IpProtocol:    s(ipProtocolAll),
-			SecurityGroup: masterSecurityGroup,
-			SourceGroup:   masterSecurityGroup,
-			PortRange:     s("-1/-1"),
-			In:            fi.Bool(true),
+	/*
+		{
+			masterSecurityGroupRules := &alitasks.SecurityGroupRule{
+				Name:          s("master-master"),
+				Lifecycle:     b.Lifecycle,
+				IpProtocol:    s(ipProtocolAll),
+				SecurityGroup: masterSecurityGroup,
+				SourceGroup:   masterSecurityGroup,
+				PortRange:     s("-1/-1"),
+				In:            fi.Bool(true),
+			}
+			c.AddTask(masterSecurityGroupRules)
 		}
-		c.AddTask(masterSecurityGroupRules)
-	}
+	*/
 
 	// Allow traffic from nodes to masters
 	{

@@ -21,6 +21,7 @@ import (
 
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
+	"github.com/golang/glog"
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
@@ -47,8 +48,14 @@ func (s *SecurityGroupRule) CompareWithID() *string {
 }
 
 func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
+	/*
+		if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
+			return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
+		}
+	*/
 	if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
-		return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
+		glog.V(4).Infof("SecurityGroup / SecurityGroupId not found for %s, skipping Find", fi.StringValue(s.Name))
+		return nil, nil
 	}
 
 	cloud := c.Cloud.(aliup.ALICloud)
@@ -117,9 +124,11 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 		if e.Name == nil {
 			return fi.RequiredField("Name")
 		}
-		if e.SecurityGroup.SecurityGroupId == nil {
-			return fi.RequiredField("SecurityGroupId")
-		}
+		/*
+			if e.SecurityGroup.SecurityGroupId == nil {
+				return fi.RequiredField("SecurityGroupId")
+			}
+		*/
 		if e.IpProtocol == nil {
 			return fi.RequiredField("IpProtocol")
 		}
@@ -135,23 +144,34 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 }
 
 func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroupRule) error {
-	if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-		return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
-	}
-
+	/*
+		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
+			return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
+		}
+	*/
 	if a == nil {
 		if fi.BoolValue(e.In) == true {
+
 			authorizeSecurityGroupArgs := &ecs.AuthorizeSecurityGroupArgs{
 				SecurityGroupId: fi.StringValue(e.SecurityGroup.SecurityGroupId),
 				RegionId:        common.Region(t.Cloud.Region()),
 				IpProtocol:      ecs.IpProtocol(fi.StringValue(e.IpProtocol)),
 				PortRange:       fi.StringValue(e.PortRange),
-				SourceGroupId:   fi.StringValue(e.SourceGroup.SecurityGroupId),
+				//SourceGroupId:   fi.StringValue(e.SourceGroup.SecurityGroupId),
 			}
+
+			if e.SourceGroup != nil && e.SourceGroup.SecurityGroupId != nil {
+				authorizeSecurityGroupArgs.SourceGroupId = fi.StringValue(e.SourceGroup.SecurityGroupId)
+			}
+			if e.SourceCidrIp != nil {
+				authorizeSecurityGroupArgs.SourceCidrIp = fi.StringValue(e.SourceCidrIp)
+			}
+
 			err := t.Cloud.EcsClient().AuthorizeSecurityGroup(authorizeSecurityGroupArgs)
 			if err != nil {
 				return fmt.Errorf("error creating securityGroupRule: %v", err)
 			}
+
 		} else {
 			authorizeSecurityGroupEgressArgs := &ecs.AuthorizeSecurityGroupEgressArgs{
 				SecurityGroupId: fi.StringValue(e.SecurityGroup.SecurityGroupId),
@@ -159,6 +179,7 @@ func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Secu
 				IpProtocol:      ecs.IpProtocol(fi.StringValue(e.IpProtocol)),
 				PortRange:       fi.StringValue(e.PortRange),
 			}
+
 			err := t.Cloud.EcsClient().AuthorizeSecurityGroupEgress(authorizeSecurityGroupEgressArgs)
 			if err != nil {
 				return fmt.Errorf("error creating securityGroupRule: %v", err)
