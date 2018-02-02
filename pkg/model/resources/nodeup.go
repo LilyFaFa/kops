@@ -49,7 +49,9 @@ NODEUP_URL={{ NodeUpSource }}
 NODEUP_HASH={{ NodeUpSourceHash }}
 
 {{ S3Env }}
+{{ OSSEnv }}
 {{ AWS_REGION }}
+{{ OSS_REGION }}
 
 {{ ProxyEnv }}
 
