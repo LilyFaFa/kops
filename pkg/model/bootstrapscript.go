@@ -86,6 +86,13 @@ func (b *BootstrapScript) ResourceNodeUp(ig *kops.InstanceGroup, cs *kops.Cluste
 			}
 			return ""
 		},
+		"OSSEnv": func() string {
+			if os.Getenv("ALIYUN_ACCESS_KEY_ID") != "" {
+				return fmt.Sprintf("export ALIYUN_ACCESS_KEY_ID=%s\nexport ALIYUN_ACCESS_KEY_SECRET=%s\n",
+					os.Getenv("ALIYUN_ACCESS_KEY_ID"),
+					os.Getenv("ALIYUN_ACCESS_KEY_SECRET"))
+			}
+		}
 
 		"ProxyEnv": func() string {
 			return b.createProxyEnv(cs.EgressProxy)
