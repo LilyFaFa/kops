@@ -36,8 +36,9 @@ func (client *Client) AllocatePublicIpAddress(instanceId string) (ipAddress stri
 
 type ModifyInstanceNetworkSpec struct {
 	InstanceId              string
-	InternetMaxBandwidthOut int
-	InternetMaxBandwidthIn  int
+	InternetMaxBandwidthOut *int
+	InternetMaxBandwidthIn  *int
+	NetworkChargeType common.InternetChargeType
 }
 
 type ModifyInstanceNetworkSpecResponse struct {
@@ -82,9 +83,18 @@ func (client *Client) AllocateEipAddress(args *AllocateEipAddressArgs) (EipAddre
 	return response.EipAddress, response.AllocationId, nil
 }
 
+type EipInstanceType string
+
+const (
+	EcsInstance = "EcsInstance"
+	SlbInstance = "SlbInstance"
+	Nat = "Nat"
+	HaVip = "HaVip"
+)
 type AssociateEipAddressArgs struct {
 	AllocationId string
 	InstanceId   string
+	InstanceType EipInstanceType
 }
 
 type AssociateEipAddressResponse struct {
@@ -101,6 +111,11 @@ func (client *Client) AssociateEipAddress(allocationId string, instanceId string
 	}
 	response := ModifyInstanceNetworkSpecResponse{}
 	return client.Invoke("AssociateEipAddress", &args, &response)
+}
+
+func (client *Client) NewAssociateEipAddress(args *AssociateEipAddressArgs) error {
+	response := ModifyInstanceNetworkSpecResponse{}
+	return client.Invoke("AssociateEipAddress", args, &response)
 }
 
 // Status of disks
