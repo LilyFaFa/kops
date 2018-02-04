@@ -115,7 +115,7 @@ func (c *ALIModelContext) GetAutoscalingGroupName(ig *kops.InstanceGroup) string
 		// We need to keep this back-compatible, so we introduce the masters name,
 		// though the IG name suffices for uniqueness, and with sensible naming masters
 		// should be redundant...
-		return "masters." + c.ClusterName()
+		return ig.ObjectMeta.Name[len(ig.ObjectMeta.Name)-3:] + ".masters." + c.ClusterName()
 	case kops.InstanceGroupRoleNode:
 		return "node." + c.ClusterName()
 	case kops.InstanceGroupRoleBastion:

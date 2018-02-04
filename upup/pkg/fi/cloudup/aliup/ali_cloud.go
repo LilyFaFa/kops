@@ -136,7 +136,43 @@ func (c *aliCloudImplementation) DeleteInstance(i *cloudinstances.CloudInstanceG
 }
 
 func (c *aliCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
-	return nil, fmt.Errorf("FindVPCInfo not implemented on aliCloud")
+	request := &ecs.DescribeVpcsArgs{
+		RegionId: common.Region(c.Region()),
+		VpcId:    id,
+	}
+	vpcs, _, err := c.EcsClient().DescribeVpcs(request)
+	if err != nil {
+		return nil, fmt.Errorf("Error listing VPCs: %v", err)
+	}
+
+	if len(vpcs) != 1 {
+		return nil, fmt.Errorf("Found multiple VPCs for %q", id)
+	} else {
+		vpcInfo := &fi.VPCInfo{
+			CIDR: vpcs[0].CidrBlock,
+		}
+
+		describeVSwitchesArgs := &ecs.DescribeVSwitchesArgs{
+			VpcId:    id,
+			RegionId: common.Region(c.Region()),
+		}
+		vswitcheList, _, err := c.EcsClient().DescribeVSwitches(describeVSwitchesArgs)
+		if err != nil {
+			return nil, fmt.Errorf("Error listing VSwitchs: %v", err)
+		}
+
+		for _, vswitch := range vswitcheList {
+			s := &fi.SubnetInfo{
+				ID:   vswitch.VSwitchId,
+				Zone: vswitch.ZoneId,
+				CIDR: vswitch.CidrBlock,
+			}
+			vpcInfo.Subnets = append(vpcInfo.Subnets, s)
+		}
+
+		return vpcInfo, nil
+	}
+
 }
 
 func (c *aliCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
