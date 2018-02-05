@@ -84,7 +84,7 @@ func (e *VPC) Find(c *fi.Context) (*VPC, error) {
 	}
 
 	for _, vpc := range vpcs {
-		if vpc.CidrBlock == fi.StringValue(e.CIDR) {
+		if vpc.CidrBlock == fi.StringValue(e.CIDR) && vpc.VpcName == fi.StringValue(e.Name) {
 			actual := &VPC{
 				ID:        fi.String(vpc.VpcId),
 				CIDR:      fi.String(vpc.CidrBlock),
@@ -144,6 +144,7 @@ func (_ *VPC) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VPC) error {
 		request := &ecs.CreateVpcArgs{
 			RegionId:  common.Region(t.Cloud.Region()),
 			CidrBlock: fi.StringValue(e.CIDR),
+			VpcName:   fi.StringValue(e.Name),
 		}
 
 		response, err := t.Cloud.EcsClient().CreateVpc(request)
