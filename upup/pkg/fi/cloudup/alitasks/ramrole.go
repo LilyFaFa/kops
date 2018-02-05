@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=RAMRole
@@ -104,4 +104,21 @@ func (_ *RAMRole) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMRole) error
 	}
 
 	return nil
+}
+
+type terraformRAMRole struct {
+	Name     *string `json:"name,omitempty"`
+	Document *string `json:"document,omitempty"`
+}
+
+func (_ *RAMRole) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *RAMRole) error {
+	tf := &terraformRAMRole{
+		Name:     e.Name,
+		Document: e.AssumeRolePolicyDocument,
+	}
+	return t.RenderResource("alicloud_ram_role", *e.Name, tf)
+}
+
+func (s *RAMRole) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ram_role", *s.Name, "name")
 }

@@ -24,9 +24,8 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
-
-//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 
 //go:generate fitask -type=LoadBalancerWhiteList
 type LoadBalancerWhiteList struct {
@@ -103,7 +102,6 @@ func (_ *LoadBalancerWhiteList) CheckChanges(a, e, changes *LoadBalancerWhiteLis
 	return nil
 }
 
-//LoadBalancer can only modify tags.
 func (_ *LoadBalancerWhiteList) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerWhiteList) error {
 	/*
 		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
@@ -154,4 +152,9 @@ func (l *LoadBalancerWhiteList) getWhiteItemsToDelete(currentWhiteItems string) 
 		}
 	}
 	return itemsToDelete
+}
+
+func (_ *LoadBalancerWhiteList) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LoadBalancerWhiteList) error {
+	glog.Warningf("terraform does not support LoadBalancerWhiteList on ALI cloud")
+	return nil
 }

@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=RAMPolicy
@@ -124,4 +124,39 @@ func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) e
 
 	return nil
 
+}
+
+type terraformRAMPolicy struct {
+	Name     *string `json:"name,omitempty"`
+	Document *string `json:"document,omitempty"`
+}
+
+type terraformRAMPolicyAttach struct {
+	PolicyName *terraform.Literal `json:"policy_name,omitempty"`
+	PolicyType *string            `json:"policy_type,omitempty"`
+	RoleName   *terraform.Literal `json:"role_name,omitempty"`
+}
+
+func (_ *RAMPolicy) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *RAMPolicy) error {
+	tf := &terraformRAMPolicy{
+		Name:     e.Name,
+		Document: e.PolicyDocument,
+	}
+	err := t.RenderResource("alicloud_ram_role", *e.Name, tf)
+	if err != nil {
+		return err
+	}
+
+	policyType := "Custom"
+	tfAttach := &terraformRAMPolicyAttach{
+		PolicyName: e.TerraformLink(),
+		RoleName:   e.RamRole.TerraformLink(),
+		PolicyType: &policyType,
+	}
+	err = t.RenderResource("alicloud_ram_role_policy_attachment", *e.Name, tfAttach)
+	return err
+}
+
+func (s *RAMPolicy) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ram_role", *s.Name, "id")
 }

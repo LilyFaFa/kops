@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=SecurityGroup
@@ -130,4 +130,22 @@ func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Security
 	}
 
 	return nil
+}
+
+type terraformSecurityGroup struct {
+	Name  *string            `json:"name,omitempty"`
+	VPCId *terraform.Literal `json:"vpc_id,omitempty"`
+}
+
+func (_ *SecurityGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *SecurityGroup) error {
+	tf := &terraformSecurityGroup{
+		Name:  e.Name,
+		VPCId: e.VPC.TerraformLink(),
+	}
+
+	return t.RenderResource("alicloud_security_group", *e.Name, tf)
+}
+
+func (l *SecurityGroup) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_security_group", *l.Name, "id")
 }

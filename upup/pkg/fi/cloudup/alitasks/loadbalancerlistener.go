@@ -25,7 +25,7 @@ import (
 	slb "github.com/denverdino/aliyungo/slb"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 const ListenerRunningStatus = "running"
@@ -150,4 +150,27 @@ func (_ *LoadBalancerListener) RenderALI(t *aliup.ALIAPITarget, a, e, changes *L
 	}
 
 	return nil
+}
+
+type terraformLoadBalancerListener struct {
+	ListenerPort      *int               `json:"frontend_port,omitempty"`
+	BackendServerPort *int               `json:"backend_port,omitempty"`
+	Protocol          *string            `json:"protocol,omitempty"`
+	LoadBalancerId    *terraform.Literal `json:"load_balancer_id,omitempty"`
+}
+
+func (_ *LoadBalancerListener) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LoadBalancerListener) error {
+	protocol := "tcp"
+	tf := &terraformLoadBalancerListener{
+		ListenerPort:      e.ListenerPort,
+		BackendServerPort: e.BackendServerPort,
+		Protocol:          &protocol,
+		LoadBalancerId:    e.LoadBalancer.TerraformLink(),
+	}
+
+	return t.RenderResource("alicloud_slb_listener", *e.Name, tf)
+}
+
+func (s *LoadBalancerListener) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_slb_listener", *s.Name, "frontend_port")
 }

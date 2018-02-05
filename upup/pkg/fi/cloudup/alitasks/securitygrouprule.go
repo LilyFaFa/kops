@@ -25,7 +25,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=SecurityGroupRule
@@ -188,4 +188,44 @@ func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Secu
 
 	}
 	return nil
+}
+
+type terraformSecurityGroupRole struct {
+	Name            *string            `json:"name,omitempty"`
+	Type            *string            `json:"type,omitempty"`
+	IpProtocol      *string            `json:"ip_protocol,omitempty"`
+	SourceCidrIp    *string            `json:"cidr_ip,omitempty"`
+	SecurityGroupId *terraform.Literal `json:"security_group_id ,omitempty"`
+	SourceGroupId   *terraform.Literal `json:"source_security_group_id  ,omitempty"`
+	PortRange       *string            `json:"port_range,omitempty"`
+}
+
+func (_ *SecurityGroupRule) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *SecurityGroupRule) error {
+
+	tf := &terraformSecurityGroupRole{
+		Name:            e.Name,
+		IpProtocol:      e.IpProtocol,
+		PortRange:       e.PortRange,
+		SecurityGroupId: e.SecurityGroup.TerraformLink(),
+	}
+
+	if fi.BoolValue(e.In) {
+		ruleType := "ingress"
+		tf.Type = &ruleType
+		if e.SourceGroup != nil {
+			tf.SourceGroupId = e.SecurityGroup.TerraformLink()
+		}
+		if e.SourceCidrIp != nil {
+			tf.SourceCidrIp = e.SourceCidrIp
+		}
+	} else {
+		ruleType := "egress"
+		tf.Type = &ruleType
+	}
+
+	return t.RenderResource("alicloud_security_group_rule", *e.Name, tf)
+}
+
+func (l *SecurityGroupRule) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_security_group_rule", *l.Name, "id")
 }

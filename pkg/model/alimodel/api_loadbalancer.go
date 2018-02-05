@@ -69,7 +69,8 @@ func (b *APILoadBalancerModelBuilder) Build(c *fi.ModelBuilderContext) error {
 
 		switch lbSpec.Type {
 		case kops.LoadBalancerTypeInternal:
-			loadbalancer.AddressType = s("intranet")
+			return fmt.Errorf("internal LoadBalancers are not yet supported by kops on ALI")
+			//loadbalancer.AddressType = s("intranet")
 		case kops.LoadBalancerTypePublic:
 			loadbalancer.AddressType = s("internet")
 		default:

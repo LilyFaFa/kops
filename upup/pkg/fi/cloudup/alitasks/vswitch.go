@@ -25,7 +25,7 @@ import (
 	"github.com/denverdino/aliyungo/ecs"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=VSwitch
@@ -121,7 +121,7 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 	return nil, nil
 }
 
-func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
+func (v *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 	if a == nil {
 		if e.CidrBlock == nil {
 			return fi.RequiredField("CidrBlock")
@@ -142,8 +142,8 @@ func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 	return nil
 }
 
-func (e *VSwitch) Run(c *fi.Context) error {
-	return fi.DefaultDeltaRunMethod(e, c)
+func (v *VSwitch) Run(c *fi.Context) error {
+	return fi.DefaultDeltaRunMethod(v, c)
 }
 
 func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error {
@@ -167,10 +167,32 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 
 		vswitchId, err := t.Cloud.EcsClient().CreateVSwitch(createVSwitchArgs)
 		if err != nil {
-			return fmt.Errorf("error creating VSwitch: %v", err)
+			return fmt.Errorf("error creating VSwitch: %v,%v", err, createVSwitchArgs)
 		}
 		e.VSwitchId = fi.String(vswitchId)
 	}
 
 	return nil
+}
+
+type terraformVSwitch struct {
+	Name      *string            `json:"name,omitempty"`
+	CidrBlock *string            `json:"cidr_block,omitempty"`
+	ZoneId    *string            `json:"availability_zone,omitempty"`
+	VPCId     *terraform.Literal `json:"vpc_id,omitempty"`
+}
+
+func (_ *VSwitch) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *VSwitch) error {
+	tf := &terraformVSwitch{
+		Name:      e.Name,
+		CidrBlock: e.CidrBlock,
+		ZoneId:    e.ZoneId,
+		VPCId:     e.VPC.TerraformLink(),
+	}
+
+	return t.RenderResource("alicloud_vswitch", *e.Name, tf)
+}
+
+func (v *VSwitch) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_vswitch", *v.Name, "id")
 }

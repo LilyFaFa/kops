@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 // LoadBalancer represents a ALI Cloud LoadBalancer
@@ -195,10 +195,10 @@ func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalan
 }
 
 // getDiskTagsToDelete loops through the currently set tags and builds a list of tags to be deleted from the specificated disk
-func (d *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string) map[string]string {
+func (l *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string) map[string]string {
 	tagsToDelete := map[string]string{}
 	for k, v := range currentTags {
-		if _, ok := d.Tags[k]; !ok {
+		if _, ok := l.Tags[k]; !ok {
 			tagsToDelete[k] = v
 		}
 	}
@@ -206,7 +206,7 @@ func (d *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string
 	return tagsToDelete
 }
 
-func (d *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
+func (l *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
 	tagItemArr := []slb.TagItem{}
 	tagItem := slb.TagItem{}
 	for key, value := range tags {
@@ -217,4 +217,29 @@ func (d *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
 	tagItems, _ := json.Marshal(tagItemArr)
 
 	return string(tagItems)
+}
+
+type terraformLoadBalancer struct {
+	Name     *string `json:"name,omitempty"`
+	Internet *bool   `json:"internet,omitempty"`
+}
+
+func (_ *LoadBalancer) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LoadBalancer) error {
+	tf := &terraformLoadBalancer{
+		Name: e.Name,
+	}
+
+	if slb.AddressType(fi.StringValue(e.AddressType)) == slb.InternetAddressType {
+		internet := true
+		tf.Internet = &internet
+	} else {
+		internet := false
+		tf.Internet = &internet
+	}
+
+	return t.RenderResource("alicloud_slb", *e.Name, tf)
+}
+
+func (l *LoadBalancer) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_slb", *l.Name, "id")
 }

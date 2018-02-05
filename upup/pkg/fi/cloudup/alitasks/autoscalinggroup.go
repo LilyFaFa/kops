@@ -117,15 +117,6 @@ func (_ *AutoscalingGroup) CheckChanges(a, e, changes *AutoscalingGroup) error {
 }
 
 func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *AutoscalingGroup) error {
-	/*
-		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-			return fmt.Errorf("error updating autoscalingGroup, lack of LoadBalnacerId")
-		}
-
-		if len(e.VSwitchs) == 0 {
-			return fmt.Errorf("error updating autoscalingGroup, lack of VSwitch")
-		}
-	*/
 	vswitchs := common.FlattenArray{}
 	for _, vswitch := range e.VSwitchs {
 		if vswitch.VSwitchId == nil {
@@ -135,6 +126,8 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	}
 
 	if a == nil {
+		glog.V(2).Infof("Creating AutoscalingGroup with Name:%q", fi.StringValue(e.Name))
+
 		createScalingGroupArgs := &ess.CreateScalingGroupArgs{
 			ScalingGroupName: fi.StringValue(e.Name),
 			RegionId:         common.Region(t.Cloud.Region()),
@@ -160,6 +153,8 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	} else {
 		//only support to update size
 		if changes.MaxSize != nil || changes.MaxSize != nil {
+			glog.V(2).Infof("Modifing AutoscalingGroup' size, GroupName:%q", fi.StringValue(e.Name))
+
 			modifyScalingGroupArgs := &ess.ModifyScalingGroupArgs{
 				ScalingGroupId: fi.StringValue(a.ScalingGroupId),
 				MinSize:        e.MinSize,
@@ -174,3 +169,71 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 
 	return nil
 }
+
+/*
+type terraformAutoscalingGroup struct {
+	Name         *int                 `json:"scaling_group_name,omitempty"`
+	MaxSize      *int                 `json:"max_size,omitempty"`
+	MinSize      *int                 `json:"min_size,omitempty"`
+	VSwitchs     []*terraform.Literal `json:"vswitch_ids,omitempty"`
+	LoadBalancer []*terraform.Literal `json:"vswitch_ids,omitempty"`
+}
+
+func (_ *AutoscalingGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *AutoscalingGroup) error {
+	tf := &terraformAutoscalingGroup{
+		Name:    e.Name,
+		MinSize: e.MinSize,
+		MaxSize: e.MaxSize,
+	}
+
+	for _, s := range e.VSwitchs {
+		tf.VSwitchs = append(tf.VPCZoneIdentifier, s.TerraformLink())
+	}
+
+	tags := e.buildTags(t.Cloud)
+	// Make sure we output in a stable order
+	var tagKeys []string
+	for k := range tags {
+		tagKeys = append(tagKeys, k)
+	}
+	sort.Strings(tagKeys)
+	for _, k := range tagKeys {
+		v := tags[k]
+		tf.Tags = append(tf.Tags, &terraformASGTag{
+			Key:               fi.String(k),
+			Value:             fi.String(v),
+			PropagateAtLaunch: fi.Bool(true),
+		})
+	}
+
+	if e.LaunchConfiguration != nil {
+		// Create TF output variable with security group ids
+		// This is in the launch configuration, but the ASG has the information about the instance group type
+
+		role := ""
+		for k := range e.Tags {
+			if strings.HasPrefix(k, CloudTagInstanceGroupRolePrefix) {
+				suffix := strings.TrimPrefix(k, CloudTagInstanceGroupRolePrefix)
+				if role != "" && role != suffix {
+					return fmt.Errorf("Found multiple role tags: %q vs %q", role, suffix)
+				}
+				role = suffix
+			}
+		}
+
+		if role != "" {
+			for _, sg := range e.LaunchConfiguration.SecurityGroups {
+				t.AddOutputVariableArray(role+"_security_group_ids", sg.TerraformLink())
+			}
+		}
+
+		if role == "node" {
+			for _, s := range e.Subnets {
+				t.AddOutputVariableArray(role+"_subnet_ids", s.TerraformLink())
+			}
+		}
+	}
+
+	return t.RenderResource("aws_autoscaling_group", *e.Name, tf)
+}
+*/
