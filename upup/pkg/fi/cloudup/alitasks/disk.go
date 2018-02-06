@@ -30,7 +30,10 @@ import (
 
 // Disk represents a ALI Cloud Disk
 //go:generate fitask -type=Disk
-const ResourceType = "disk"
+const (
+	DiskResource = "disk"
+	DiskType     = ecs.DiskTypeAllData
+)
 
 type Disk struct {
 	Lifecycle    *fi.Lifecycle
@@ -54,6 +57,7 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 	clusterTags := cloud.GetClusterTags()
 
 	request := &ecs.DescribeDisksArgs{
+		DiskType: DiskType,
 		RegionId: common.Region(cloud.Region()),
 		ZoneId:   fi.StringValue(d.ZoneId),
 		Tag:      clusterTags,
@@ -81,7 +85,7 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 	actual.SizeGB = fi.Int(responseDisks[0].Size)
 	actual.DiskId = fi.String(responseDisks[0].DiskId)
 
-	resourceType := ResourceType
+	resourceType := DiskResource
 	tags, err := cloud.GetTags(fi.StringValue(actual.DiskId), resourceType)
 
 	if err != nil {
@@ -91,10 +95,14 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 
 	// Ignore "system" fields
 	actual.Lifecycle = d.Lifecycle
+	d.DiskId = actual.DiskId
 	return actual, nil
 }
 
 func (d *Disk) Run(c *fi.Context) error {
+	if d.Tags == nil {
+		d.Tags = make(map[string]string)
+	}
 	c.Cloud.(aliup.ALICloud).AddClusterTags(d.Tags)
 	return fi.DefaultDeltaRunMethod(d, c)
 }
@@ -108,17 +116,8 @@ func (_ *Disk) CheckChanges(a, e, changes *Disk) error {
 			return fi.RequiredField("Name")
 		}
 	} else {
-		if changes.DiskId != nil {
-			return fi.CannotChangeField("DiskId")
-		}
 		if changes.DiskCategory != nil {
 			return fi.CannotChangeField("DiskCategory")
-		}
-		if changes.ZoneId != nil {
-			return fi.CannotChangeField("ZoneId")
-		}
-		if changes.Encrypted != nil {
-			return fi.CannotChangeField("Encrypted")
 		}
 	}
 	return nil
@@ -145,8 +144,8 @@ func (_ *Disk) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Disk) error {
 		e.DiskId = fi.String(diskId)
 	}
 
-	resourceType := ResourceType
-	if changes.Tags != nil {
+	resourceType := DiskResource
+	if changes != nil && changes.Tags != nil {
 		if err := t.Cloud.CreateTags(*e.DiskId, resourceType, e.Tags); err != nil {
 			return fmt.Errorf("error adding Tags to ALI YunPan: %v", err)
 		}
@@ -178,12 +177,17 @@ func (d *Disk) getDiskTagsToDelete(currentTags map[string]string) map[string]str
 	return tagsToDelete
 }
 
+type terraformDiskTag struct {
+	Key   *string `json:"key"`
+	Value *string `json:"value"`
+}
+
 type terraformDisk struct {
-	DiskName     *string           `json:"name,omitempty"`
-	DiskCategory *string           `json:"category,omitempty"`
-	SizeGB       *int              `json:"size,omitempty"`
-	Zone         *string           `json:"availability_zone,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	DiskName     *string             `json:"name,omitempty"`
+	DiskCategory *string             `json:"category,omitempty"`
+	SizeGB       *int                `json:"size,omitempty"`
+	Zone         *string             `json:"availability_zone,omitempty"`
+	Tags         []*terraformDiskTag `json:"tags,omitempty"`
 }
 
 func (_ *Disk) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Disk) error {
@@ -192,7 +196,13 @@ func (_ *Disk) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Disk
 		DiskCategory: e.DiskCategory,
 		SizeGB:       e.SizeGB,
 		Zone:         e.ZoneId,
-		Tags:         e.Tags,
+	}
+
+	for key, value := range e.Tags {
+		tf.Tags = append(tf.Tags, &terraformDiskTag{
+			Key:   &key,
+			Value: &value,
+		})
 	}
 	return t.RenderResource("alicloud_disk", *e.Name, tf)
 }
