@@ -211,7 +211,7 @@ func (a *ALIVolumes) FindVolumes() ([]*Volume, error) {
 
 	var tags map[string]string
 	tags[aliup.TagClusterName] = a.clusterTag
-	tags[aliup.TagNameRolePrefix+"master"] = "master"
+	tags[aliup.TagNameRolePrefix+"master"] = "1"
 	args := &ecs.DescribeDisksArgs{
 		RegionId: common.Region(a.region),
 		ZoneId:   a.zone,
