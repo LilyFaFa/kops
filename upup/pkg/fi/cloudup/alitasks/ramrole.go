@@ -21,9 +21,10 @@ import (
 
 	ram "github.com/denverdino/aliyungo/ram"
 
+	"github.com/golang/glog"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=RAMRole
@@ -57,6 +58,8 @@ func (r *RAMRole) Find(c *fi.Context) (*RAMRole, error) {
 	// The same user's RAM resource name can not be repeated
 	for _, role := range roleList.Roles.Role {
 		if role.RoleName == fi.StringValue(r.Name) {
+
+			glog.V(2).Infof("found matching RamRole with name: %q", *r.Name)
 			actual := &RAMRole{}
 			actual.Name = fi.String(role.RoleName)
 			actual.RAMRoleId = fi.String(role.RoleId)
@@ -90,6 +93,8 @@ func (_ *RAMRole) CheckChanges(a, e, changes *RAMRole) error {
 
 func (_ *RAMRole) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMRole) error {
 	if a == nil {
+		glog.V(2).Infof("Creating RAMRole with Name:%q", fi.StringValue(e.Name))
+
 		roleRequest := ram.RoleRequest{
 			RoleName:                 fi.StringValue(e.Name),
 			AssumeRolePolicyDocument: fi.StringValue(e.AssumeRolePolicyDocument),
@@ -104,4 +109,21 @@ func (_ *RAMRole) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMRole) error
 	}
 
 	return nil
+}
+
+type terraformRAMRole struct {
+	Name     *string `json:"name,omitempty"`
+	Document *string `json:"document,omitempty"`
+}
+
+func (_ *RAMRole) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *RAMRole) error {
+	tf := &terraformRAMRole{
+		Name:     e.Name,
+		Document: e.AssumeRolePolicyDocument,
+	}
+	return t.RenderResource("alicloud_ram_role", *e.Name, tf)
+}
+
+func (s *RAMRole) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ram_role", *s.Name, "name")
 }

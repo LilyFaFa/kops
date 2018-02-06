@@ -59,6 +59,7 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 		Tag:      clusterTags,
 		Name:     fi.StringValue(d.Name),
 	}
+
 	responseDisks, _, err := cloud.EcsClient().DescribeDisks(request)
 	if err != nil {
 		return nil, fmt.Errorf("error finding Disks: %v", err)
@@ -71,6 +72,8 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 		glog.V(4).Info("The number of specified disk whith the same name and ClusterTags exceeds 1, diskName:%q", *d.Name)
 	}
 
+	glog.V(2).Infof("found matching Disk with name: %q", *d.Name)
+
 	actual := &Disk{}
 	actual.Name = fi.String(responseDisks[0].DiskName)
 	actual.DiskCategory = fi.String(string(responseDisks[0].Category))
@@ -80,6 +83,7 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 
 	resourceType := ResourceType
 	tags, err := cloud.GetTags(fi.StringValue(actual.DiskId), resourceType)
+
 	if err != nil {
 		glog.V(4).Info("Error getting tags on resourceId:%q", *actual.DiskId)
 	}
@@ -124,6 +128,8 @@ func (_ *Disk) CheckChanges(a, e, changes *Disk) error {
 //TODO: Whether should we allow modify size?
 func (_ *Disk) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Disk) error {
 	if a == nil {
+		glog.V(2).Infof("Creating Disk with Name:%q", fi.StringValue(e.Name))
+
 		request := &ecs.CreateDiskArgs{
 			DiskName:     fi.StringValue(e.Name),
 			RegionId:     common.Region(t.Cloud.Region()),
@@ -147,6 +153,8 @@ func (_ *Disk) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Disk) error {
 	}
 
 	if a != nil && (len(a.Tags) > 0) {
+		glog.V(2).Infof("Modifing Disk with Name:%q", fi.StringValue(e.Name))
+
 		tagsToDelete := e.getDiskTagsToDelete(a.Tags)
 		if len(tagsToDelete) > 0 {
 			if err := t.Cloud.RemoveTags(*e.DiskId, resourceType, tagsToDelete); err != nil {
@@ -171,10 +179,10 @@ func (d *Disk) getDiskTagsToDelete(currentTags map[string]string) map[string]str
 }
 
 type terraformDisk struct {
-	DiskName     *string           `json:"name"`
-	DiskCategory *string           `json:"category"`
-	SizeGB       *int              `json:"size"`
-	Zone         *string           `json:"availability_zone"`
+	DiskName     *string           `json:"name,omitempty"`
+	DiskCategory *string           `json:"category,omitempty"`
+	SizeGB       *int              `json:"size,omitempty"`
+	Zone         *string           `json:"availability_zone,omitempty"`
 	Tags         map[string]string `json:"tags,omitempty"`
 }
 

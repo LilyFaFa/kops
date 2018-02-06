@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=AutoscalingGroup
@@ -70,6 +70,8 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 		glog.V(4).Info("The number of specified scalingGroup whith the same name and ClusterTags exceeds 1, diskName:%q", *a.Name)
 	}
 
+	glog.V(2).Infof("found matching AutoscalingGroup with Name: %q", *a.Name)
+
 	actual := &AutoscalingGroup{}
 	actual.Name = fi.String(groupList[0].ScalingGroupName)
 	actual.MinSize = fi.Int(groupList[0].MinSize)
@@ -80,6 +82,7 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	actual.LoadBalancer = &LoadBalancer{
 		LoadbalancerId: fi.String(groupList[0].LoadBalancerId),
 	}
+
 	if len(groupList[0].VSwitchIds.VSwitchId) != 0 {
 		for _, vswitch := range groupList[0].VSwitchIds.VSwitchId {
 			v := &VSwitch{
@@ -117,15 +120,6 @@ func (_ *AutoscalingGroup) CheckChanges(a, e, changes *AutoscalingGroup) error {
 }
 
 func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *AutoscalingGroup) error {
-	/*
-		if e.LoadBalancer == nil || e.LoadBalancer.LoadbalancerId == nil {
-			return fmt.Errorf("error updating autoscalingGroup, lack of LoadBalnacerId")
-		}
-
-		if len(e.VSwitchs) == 0 {
-			return fmt.Errorf("error updating autoscalingGroup, lack of VSwitch")
-		}
-	*/
 	vswitchs := common.FlattenArray{}
 	for _, vswitch := range e.VSwitchs {
 		if vswitch.VSwitchId == nil {
@@ -135,6 +129,8 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	}
 
 	if a == nil {
+		glog.V(2).Infof("Creating AutoscalingGroup with Name:%q", fi.StringValue(e.Name))
+
 		createScalingGroupArgs := &ess.CreateScalingGroupArgs{
 			ScalingGroupName: fi.StringValue(e.Name),
 			RegionId:         common.Region(t.Cloud.Region()),
@@ -160,6 +156,8 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	} else {
 		//only support to update size
 		if changes.MaxSize != nil || changes.MaxSize != nil {
+			glog.V(2).Infof("Modifing AutoscalingGroup with Name:%q", fi.StringValue(e.Name))
+
 			modifyScalingGroupArgs := &ess.ModifyScalingGroupArgs{
 				ScalingGroupId: fi.StringValue(a.ScalingGroupId),
 				MinSize:        e.MinSize,
@@ -173,4 +171,35 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	}
 
 	return nil
+}
+
+type terraformAutoscalingGroup struct {
+	Name    *string `json:"scaling_group_name,omitempty"`
+	MaxSize *int    `json:"max_size,omitempty"`
+	MinSize *int    `json:"min_size,omitempty"`
+
+	VSwitchs     []*terraform.Literal `json:"vswitch_ids,omitempty"`
+	LoadBalancer []*terraform.Literal `json:"loadbalancer_ids,omitempty"`
+}
+
+func (_ *AutoscalingGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *AutoscalingGroup) error {
+	tf := &terraformAutoscalingGroup{
+		Name:    e.Name,
+		MinSize: e.MinSize,
+		MaxSize: e.MaxSize,
+	}
+
+	if len(e.VSwitchs) != 0 {
+		for _, s := range e.VSwitchs {
+			tf.VSwitchs = append(tf.VSwitchs, s.TerraformLink())
+		}
+	}
+
+	tf.LoadBalancer = append(tf.LoadBalancer, e.LoadBalancer.TerraformLink())
+
+	return t.RenderResource("alicloud_ess_scaling_group", *e.Name, tf)
+}
+
+func (a *AutoscalingGroup) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ess_scaling_group", *a.Name, "id")
 }

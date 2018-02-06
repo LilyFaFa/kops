@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 // LoadBalancer represents a ALI Cloud LoadBalancer
@@ -50,17 +50,19 @@ func (l *LoadBalancer) CompareWithID() *string {
 
 func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 	cloud := c.Cloud.(aliup.ALICloud)
-	//	clusterTags := cloud.GetClusterTags()
-	//TODO:Get loadbalancer with LoadBalancerName, hope to support finding with tags
+
+	// TODO:Get loadbalancer with LoadBalancerName, hope to support finding with tags
 	describeLoadBalancersArgs := &slb.DescribeLoadBalancersArgs{
 		RegionId:         common.Region(cloud.Region()),
 		LoadBalancerName: fi.StringValue(l.Name),
 		AddressType:      slb.AddressType(fi.StringValue(l.AddressType)),
 	}
+
 	responseLoadBalancers, err := cloud.SlbClient().DescribeLoadBalancers(describeLoadBalancersArgs)
 	if err != nil {
 		return nil, fmt.Errorf("error finding LoadBalancers: %v", err)
 	}
+
 	// Don't exist loadbalancer with specified ClusterTags or Name.
 	if len(responseLoadBalancers) == 0 {
 		return nil, nil
@@ -68,6 +70,8 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 	if len(responseLoadBalancers) > 1 {
 		glog.V(4).Info("The number of specified loadbalancer whith the same name exceeds 1, loadbalancerName:%q", *l.Name)
 	}
+
+	glog.V(2).Infof("found matching LoadBalancer: %q", *l.Name)
 
 	actual := &LoadBalancer{}
 	actual.Name = fi.String(responseLoadBalancers[0].LoadBalancerName)
@@ -98,8 +102,8 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 
 func (l *LoadBalancer) FindIPAddress(context *fi.Context) (*string, error) {
 	cloud := context.Cloud.(aliup.ALICloud)
-	//	clusterTags := cloud.GetClusterTags()
-	//TODO:Get loadbalancer with LoadBalancerName, hope to support finding with tags
+
+	// TODO:Get loadbalancer with LoadBalancerName, hope to support finding with tags
 	describeLoadBalancersArgs := &slb.DescribeLoadBalancersArgs{
 		RegionId:         common.Region(cloud.Region()),
 		LoadBalancerName: fi.StringValue(l.Name),
@@ -150,6 +154,8 @@ func (_ *LoadBalancer) CheckChanges(a, e, changes *LoadBalancer) error {
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancer) error {
 	if a == nil {
+		glog.V(2).Infof("Creating LoadBalancer with Name:%q", fi.StringValue(e.Name))
+
 		createLoadBalancerArgs := &slb.CreateLoadBalancerArgs{
 			RegionId:         common.Region(t.Cloud.Region()),
 			LoadBalancerName: fi.StringValue(e.Name),
@@ -177,6 +183,8 @@ func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalan
 	}
 
 	if a != nil && (len(a.Tags) > 0) {
+		glog.V(2).Infof("Modifing LoadBalancer with Name:%q, update LoadBalancer tags", fi.StringValue(e.Name))
+
 		tagsToDelete := e.getLoadBalancerTagsToDelete(a.Tags)
 		if len(tagsToDelete) > 0 {
 			tagItems := e.jsonMarshalTags(tagsToDelete)
@@ -195,10 +203,10 @@ func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalan
 }
 
 // getDiskTagsToDelete loops through the currently set tags and builds a list of tags to be deleted from the specificated disk
-func (d *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string) map[string]string {
+func (l *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string) map[string]string {
 	tagsToDelete := map[string]string{}
 	for k, v := range currentTags {
-		if _, ok := d.Tags[k]; !ok {
+		if _, ok := l.Tags[k]; !ok {
 			tagsToDelete[k] = v
 		}
 	}
@@ -206,7 +214,7 @@ func (d *LoadBalancer) getLoadBalancerTagsToDelete(currentTags map[string]string
 	return tagsToDelete
 }
 
-func (d *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
+func (l *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
 	tagItemArr := []slb.TagItem{}
 	tagItem := slb.TagItem{}
 	for key, value := range tags {
@@ -217,4 +225,29 @@ func (d *LoadBalancer) jsonMarshalTags(tags map[string]string) string {
 	tagItems, _ := json.Marshal(tagItemArr)
 
 	return string(tagItems)
+}
+
+type terraformLoadBalancer struct {
+	Name     *string `json:"name,omitempty"`
+	Internet *bool   `json:"internet,omitempty"`
+}
+
+func (_ *LoadBalancer) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LoadBalancer) error {
+	tf := &terraformLoadBalancer{
+		Name: e.Name,
+	}
+
+	if slb.AddressType(fi.StringValue(e.AddressType)) == slb.InternetAddressType {
+		internet := true
+		tf.Internet = &internet
+	} else {
+		internet := false
+		tf.Internet = &internet
+	}
+
+	return t.RenderResource("alicloud_slb", *e.Name, tf)
+}
+
+func (l *LoadBalancer) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_slb", *l.Name, "id")
 }

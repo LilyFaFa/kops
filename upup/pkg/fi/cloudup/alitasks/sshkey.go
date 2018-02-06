@@ -21,8 +21,11 @@ import (
 
 	common "github.com/denverdino/aliyungo/common"
 	ecs "github.com/denverdino/aliyungo/ecs"
+
+	"github.com/golang/glog"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=SSHKey
@@ -35,16 +38,16 @@ type SSHKey struct {
 
 var _ fi.CompareWithID = &SSHKey{}
 
-func (e *SSHKey) CompareWithID() *string {
-	return e.Name
+func (s *SSHKey) CompareWithID() *string {
+	return s.Name
 }
 
-func (e *SSHKey) Find(c *fi.Context) (*SSHKey, error) {
+func (s *SSHKey) Find(c *fi.Context) (*SSHKey, error) {
 	cloud := c.Cloud.(aliup.ALICloud)
 
 	describeKeyPairsArgs := &ecs.DescribeKeyPairsArgs{
 		RegionId:    common.Region(cloud.Region()),
-		KeyPairName: fi.StringValue(e.Name),
+		KeyPairName: fi.StringValue(s.Name),
 	}
 	keypairs, _, err := cloud.EcsClient().DescribeKeyPairs(describeKeyPairsArgs)
 
@@ -56,23 +59,23 @@ func (e *SSHKey) Find(c *fi.Context) (*SSHKey, error) {
 		return nil, nil
 	}
 	if len(keypairs) != 1 {
-		return nil, fmt.Errorf("Found multiple SSHKeys with Name %q", *e.Name)
+		return nil, fmt.Errorf("Found multiple SSHKeys with Name %q", *s.Name)
 	}
 
+	glog.V(2).Infof("found matching SSHKey with name: %q", *s.Name)
 	k := keypairs[0]
-
 	actual := &SSHKey{
 		Name:               fi.String(k.KeyPairName),
 		KeyPairFingerPrint: fi.String(k.KeyPairFingerPrint),
 	}
 	// Ignore "system" fields
-	actual.Lifecycle = e.Lifecycle
+	actual.Lifecycle = s.Lifecycle
 
 	return actual, nil
 }
 
-func (e *SSHKey) Run(c *fi.Context) error {
-	return fi.DefaultDeltaRunMethod(e, c)
+func (s *SSHKey) Run(c *fi.Context) error {
+	return fi.DefaultDeltaRunMethod(s, c)
 }
 
 func (s *SSHKey) CheckChanges(a, e, changes *SSHKey) error {
@@ -86,6 +89,8 @@ func (s *SSHKey) CheckChanges(a, e, changes *SSHKey) error {
 
 func (_ *SSHKey) RenderAWS(t *aliup.ALIAPITarget, a, e, changes *SSHKey) error {
 	if a == nil {
+		glog.V(2).Infof("Creating SSHKey with Name:%q", fi.StringValue(e.Name))
+
 		importKeyPairArgs := &ecs.ImportKeyPairArgs{
 			RegionId:    common.Region(t.Cloud.Region()),
 			KeyPairName: fi.StringValue(e.Name),
@@ -108,4 +113,28 @@ func (_ *SSHKey) RenderAWS(t *aliup.ALIAPITarget, a, e, changes *SSHKey) error {
 	}
 
 	return nil
+}
+
+type terraformSSHKey struct {
+	Name      *string `json:"key_name,omitempty"`
+	PublicKey *string `json:"public_key,omitempty"`
+}
+
+func (_ *SSHKey) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *SSHKey) error {
+
+	keyString, err := e.PublicKey.AsString()
+	if err != nil {
+		return fmt.Errorf("error rendering SSHKey PublicKey: %v", err)
+	}
+
+	tf := &terraformSSHKey{
+		Name:      e.Name,
+		PublicKey: &keyString,
+	}
+
+	return t.RenderResource("alicloud_key_pair", *e.Name, tf)
+}
+
+func (s *SSHKey) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_key_pair", *s.Name, "name")
 }

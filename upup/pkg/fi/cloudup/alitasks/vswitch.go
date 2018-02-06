@@ -25,7 +25,7 @@ import (
 	"github.com/denverdino/aliyungo/ecs"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=VSwitch
@@ -49,11 +49,6 @@ func (v *VSwitch) CompareWithID() *string {
 }
 
 func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
-	/*
-		if v.VPC == nil || v.VPC.ID == nil {
-			return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
-		}
-	*/
 	if v.VPC == nil || v.VPC.ID == nil {
 		glog.V(4).Infof("VPC / VPCID not found for %s, skipping Find", fi.StringValue(v.Name))
 		return nil, nil
@@ -79,6 +74,8 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 		if len(vswitcheList) != 1 {
 			return nil, fmt.Errorf("found multiple VSwitchs for %q", fi.StringValue(v.VSwitchId))
 		} else {
+			glog.V(2).Infof("found matching VSwitch with name: %q", *v.Name)
+
 			actual := &VSwitch{
 				Name:      fi.String(vswitcheList[0].VSwitchName),
 				VSwitchId: fi.String(vswitcheList[0].VSwitchId),
@@ -101,6 +98,8 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 
 	for _, vswitch := range vswitcheList {
 		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) && !fi.BoolValue(v.Shared) {
+
+			glog.V(2).Infof("found matching VSwitch with name: %q", *v.Name)
 			actual := &VSwitch{
 				Name:      fi.String(vswitch.VSwitchName),
 				VSwitchId: fi.String(vswitch.VSwitchId),
@@ -121,16 +120,11 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 	return nil, nil
 }
 
-func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
+func (v *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 	if a == nil {
 		if e.CidrBlock == nil {
 			return fi.RequiredField("CidrBlock")
 		}
-		/*
-			if e.VPC == nil || e.VPC.ID == nil {
-				return fi.RequiredField("VPCId")
-			}
-		*/
 		if e.ZoneId == nil {
 			return fi.RequiredField("ZoneId")
 		}
@@ -142,8 +136,8 @@ func (s *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 	return nil
 }
 
-func (e *VSwitch) Run(c *fi.Context) error {
-	return fi.DefaultDeltaRunMethod(e, c)
+func (v *VSwitch) Run(c *fi.Context) error {
+	return fi.DefaultDeltaRunMethod(v, c)
 }
 
 func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error {
@@ -156,7 +150,7 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 			return nil
 		}
 
-		glog.V(2).Infof("Creating VSwitch with CIDR: %q", *e.CidrBlock)
+		glog.V(2).Infof("Creating VSwitch with name: %q", *e.Name)
 
 		createVSwitchArgs := &ecs.CreateVSwitchArgs{
 			ZoneId:      fi.StringValue(e.ZoneId),
@@ -167,10 +161,32 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 
 		vswitchId, err := t.Cloud.EcsClient().CreateVSwitch(createVSwitchArgs)
 		if err != nil {
-			return fmt.Errorf("error creating VSwitch: %v", err)
+			return fmt.Errorf("error creating VSwitch: %v,%v", err, createVSwitchArgs)
 		}
 		e.VSwitchId = fi.String(vswitchId)
 	}
 
 	return nil
+}
+
+type terraformVSwitch struct {
+	Name      *string            `json:"name,omitempty"`
+	CidrBlock *string            `json:"cidr_block,omitempty"`
+	ZoneId    *string            `json:"availability_zone,omitempty"`
+	VPCId     *terraform.Literal `json:"vpc_id,omitempty"`
+}
+
+func (_ *VSwitch) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *VSwitch) error {
+	tf := &terraformVSwitch{
+		Name:      e.Name,
+		CidrBlock: e.CidrBlock,
+		ZoneId:    e.ZoneId,
+		VPCId:     e.VPC.TerraformLink(),
+	}
+
+	return t.RenderResource("alicloud_vswitch", *e.Name, tf)
+}
+
+func (v *VSwitch) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_vswitch", *v.Name, "id")
 }
