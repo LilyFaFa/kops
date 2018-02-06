@@ -49,11 +49,6 @@ func (l *LoadBalancerListener) CompareWithID() *string {
 }
 
 func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error) {
-	/*
-		if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
-			return nil, fmt.Errorf("error finding LoadBalancerListener, lack of LoadBalancerId")
-		}
-	*/
 	if l.LoadBalancer == nil || l.LoadBalancer.LoadbalancerId == nil {
 		glog.V(4).Infof("LoadBalancer / LoadbalancerId not found for %s, skipping Find", fi.StringValue(l.Name))
 		return nil, nil
@@ -61,11 +56,14 @@ func (l *LoadBalancerListener) Find(c *fi.Context) (*LoadBalancerListener, error
 	cloud := c.Cloud.(aliup.ALICloud)
 	loadBalancerId := fi.StringValue(l.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(l.ListenerPort)
+
 	//TODO: should sort errors?
 	response, err := cloud.SlbClient().DescribeLoadBalancerTCPListenerAttribute(loadBalancerId, listenertPort)
 	if err != nil {
 		return nil, nil
 	}
+
+	glog.V(2).Infof("found matching LoadBalancerListener with ListenerPort: %q", *l.ListenerPort)
 
 	actual := &LoadBalancerListener{}
 	actual.BackendServerPort = fi.Int(response.BackendServerPort)
@@ -112,14 +110,12 @@ func (_ *LoadBalancerListener) CheckChanges(a, e, changes *LoadBalancerListener)
 
 //LoadBalancer can only modify tags.
 func (_ *LoadBalancerListener) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalancerListener) error {
-	/*
-		if e.LoadBalancer.LoadbalancerId == nil {
-			return fmt.Errorf("error updating LoadBalancerListener, lack of LoadBalnacerId")
-		}
-	*/
+
 	loadBalancerId := fi.StringValue(e.LoadBalancer.LoadbalancerId)
 	listenertPort := fi.IntValue(e.ListenerPort)
 	if a == nil {
+		glog.V(2).Infof("Creating LoadBalancerListener with ListenerPort: %q", *e.ListenerPort)
+
 		createLoadBalancerTCPListenerArgs := &slb.CreateLoadBalancerTCPListenerArgs{
 			LoadBalancerId:    loadBalancerId,
 			ListenerPort:      listenertPort,
@@ -133,16 +129,22 @@ func (_ *LoadBalancerListener) RenderALI(t *aliup.ALIAPITarget, a, e, changes *L
 	}
 
 	if fi.StringValue(e.ListenerStatus) == ListenerRunningStatus {
+		glog.V(2).Infof("Starting  LoadBalancerListener with ListenerPort: %q", *e.ListenerPort)
+
 		err := t.Cloud.SlbClient().StartLoadBalancerListener(loadBalancerId, listenertPort)
 		if err != nil {
 			return fmt.Errorf("error starting LoadBalancerListener: %v", err)
 		}
 	} else {
+		glog.V(2).Infof("Stopping  LoadBalancerListener with ListenerPort: %q", *e.ListenerPort)
+
 		err := t.Cloud.SlbClient().StopLoadBalancerListener(loadBalancerId, listenertPort)
 		if err != nil {
 			return fmt.Errorf("error stopping LoadBalancerListener: %v", err)
 		}
 	}
+
+	glog.V(2).Infof("Waiting LoadBalancerListener with ListenerPort: %q", *e.ListenerPort)
 
 	_, err := t.Cloud.SlbClient().WaitForListener(loadBalancerId, listenertPort, slb.TCP)
 	if err != nil {

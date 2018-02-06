@@ -49,11 +49,6 @@ func (v *VSwitch) CompareWithID() *string {
 }
 
 func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
-	/*
-		if v.VPC == nil || v.VPC.ID == nil {
-			return nil, fmt.Errorf("error finding VSwitch, lack of VPCId")
-		}
-	*/
 	if v.VPC == nil || v.VPC.ID == nil {
 		glog.V(4).Infof("VPC / VPCID not found for %s, skipping Find", fi.StringValue(v.Name))
 		return nil, nil
@@ -79,6 +74,8 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 		if len(vswitcheList) != 1 {
 			return nil, fmt.Errorf("found multiple VSwitchs for %q", fi.StringValue(v.VSwitchId))
 		} else {
+			glog.V(2).Infof("found matching VSwitch with name: %q", *v.Name)
+
 			actual := &VSwitch{
 				Name:      fi.String(vswitcheList[0].VSwitchName),
 				VSwitchId: fi.String(vswitcheList[0].VSwitchId),
@@ -101,6 +98,8 @@ func (v *VSwitch) Find(c *fi.Context) (*VSwitch, error) {
 
 	for _, vswitch := range vswitcheList {
 		if vswitch.CidrBlock == fi.StringValue(v.CidrBlock) && !fi.BoolValue(v.Shared) {
+
+			glog.V(2).Infof("found matching VSwitch with name: %q", *v.Name)
 			actual := &VSwitch{
 				Name:      fi.String(vswitch.VSwitchName),
 				VSwitchId: fi.String(vswitch.VSwitchId),
@@ -126,11 +125,6 @@ func (v *VSwitch) CheckChanges(a, e, changes *VSwitch) error {
 		if e.CidrBlock == nil {
 			return fi.RequiredField("CidrBlock")
 		}
-		/*
-			if e.VPC == nil || e.VPC.ID == nil {
-				return fi.RequiredField("VPCId")
-			}
-		*/
 		if e.ZoneId == nil {
 			return fi.RequiredField("ZoneId")
 		}
@@ -156,7 +150,7 @@ func (_ *VSwitch) RenderALI(t *aliup.ALIAPITarget, a, e, changes *VSwitch) error
 			return nil
 		}
 
-		glog.V(2).Infof("Creating VSwitch with CIDR: %q", *e.CidrBlock)
+		glog.V(2).Infof("Creating VSwitch with name: %q", *e.Name)
 
 		createVSwitchArgs := &ecs.CreateVSwitchArgs{
 			ZoneId:      fi.StringValue(e.ZoneId),

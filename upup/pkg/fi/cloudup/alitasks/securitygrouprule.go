@@ -48,11 +48,6 @@ func (s *SecurityGroupRule) CompareWithID() *string {
 }
 
 func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
-	/*
-		if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
-			return nil, fmt.Errorf("error finding SecurityGroupRule, lack of SecurityGroupId")
-		}
-	*/
 	if s.SecurityGroup == nil || s.SecurityGroup.SecurityGroupId == nil {
 		glog.V(4).Infof("SecurityGroup / SecurityGroupId not found for %s, skipping Find", fi.StringValue(s.Name))
 		return nil, nil
@@ -65,6 +60,7 @@ func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
 	} else {
 		direction = ecs.DirectionEgress
 	}
+
 	describeSecurityGroupAttributeArgs := &ecs.DescribeSecurityGroupAttributeArgs{
 		RegionId:        common.Region(cloud.Region()),
 		SecurityGroupId: fi.StringValue(s.SecurityGroup.SecurityGroupId),
@@ -97,6 +93,8 @@ func (s *SecurityGroupRule) Find(c *fi.Context) (*SecurityGroupRule, error) {
 		if s.SourceCidrIp != nil && securityGroupRule.SourceCidrIp != fi.StringValue(s.SourceCidrIp) {
 			continue
 		}
+
+		glog.V(2).Infof("found matching SecurityGroupRule of securityGroup: %q", *s.SecurityGroup.SecurityGroupId)
 
 		actual.PortRange = fi.String(securityGroupRule.PortRange)
 		actual.SourceCidrIp = fi.String(securityGroupRule.SourceCidrIp)
@@ -144,20 +142,16 @@ func (_ *SecurityGroupRule) CheckChanges(a, e, changes *SecurityGroupRule) error
 }
 
 func (_ *SecurityGroupRule) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroupRule) error {
-	/*
-		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-			return fmt.Errorf("error updating SecurityGroupRule, lack of SecurityGroupId")
-		}
-	*/
+
 	if a == nil {
 		if fi.BoolValue(e.In) == true {
+			glog.V(2).Infof("Creating SecurityGroupRule of SecurityGroup:%q", fi.StringValue(e.SecurityGroup.SecurityGroupId))
 
 			authorizeSecurityGroupArgs := &ecs.AuthorizeSecurityGroupArgs{
 				SecurityGroupId: fi.StringValue(e.SecurityGroup.SecurityGroupId),
 				RegionId:        common.Region(t.Cloud.Region()),
 				IpProtocol:      ecs.IpProtocol(fi.StringValue(e.IpProtocol)),
 				PortRange:       fi.StringValue(e.PortRange),
-				//SourceGroupId:   fi.StringValue(e.SourceGroup.SecurityGroupId),
 			}
 
 			if e.SourceGroup != nil && e.SourceGroup.SecurityGroupId != nil {

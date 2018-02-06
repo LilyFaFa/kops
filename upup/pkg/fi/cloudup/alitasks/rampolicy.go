@@ -21,6 +21,7 @@ import (
 
 	ram "github.com/denverdino/aliyungo/ram"
 
+	"github.com/golang/glog"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
@@ -61,6 +62,7 @@ func (r *RAMPolicy) Find(c *fi.Context) (*RAMPolicy, error) {
 	for _, policy := range policyList.Policies.Policy {
 		if policy.PolicyName == fi.StringValue(r.Name) {
 
+			glog.V(2).Infof("found matching RamPolicy with name: %q", *r.Name)
 			actual := &RAMPolicy{}
 			actual.Name = fi.String(policy.PolicyName)
 			actual.PolicyType = fi.String(string(policy.PolicyType))
@@ -86,11 +88,7 @@ func (_ *RAMPolicy) CheckChanges(a, e, changes *RAMPolicy) error {
 	if e.Name == nil {
 		return fi.RequiredField("Name")
 	}
-	/*
-		if e.RamRole == nil || e.RamRole.RAMRoleId == nil {
-			return fi.RequiredField("RAMRoleId")
-		}
-	*/
+
 	return nil
 }
 
@@ -99,6 +97,8 @@ func (_ *RAMPolicy) RenderALI(t *aliup.ALIAPITarget, a, e, changes *RAMPolicy) e
 	policyRequest := ram.PolicyRequest{}
 
 	if a == nil {
+		glog.V(2).Infof("Creating RAMPolicy with Name:%q", fi.StringValue(e.Name))
+
 		policyRequest = ram.PolicyRequest{
 			PolicyName:     fi.StringValue(e.Name),
 			PolicyDocument: fi.StringValue(e.PolicyDocument),
@@ -142,7 +142,7 @@ func (_ *RAMPolicy) RenderTerraform(t *terraform.TerraformTarget, a, e, changes 
 		Name:     e.Name,
 		Document: e.PolicyDocument,
 	}
-	err := t.RenderResource("alicloud_ram_role", *e.Name, tf)
+	err := t.RenderResource("alicloud_ram_policy", *e.Name, tf)
 	if err != nil {
 		return err
 	}
@@ -158,5 +158,5 @@ func (_ *RAMPolicy) RenderTerraform(t *terraform.TerraformTarget, a, e, changes 
 }
 
 func (s *RAMPolicy) TerraformLink() *terraform.Literal {
-	return terraform.LiteralProperty("alicloud_ram_role", *s.Name, "id")
+	return terraform.LiteralProperty("alicloud_ram_policy", *s.Name, "id")
 }

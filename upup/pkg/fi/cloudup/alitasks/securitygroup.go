@@ -45,15 +45,11 @@ func (s *SecurityGroup) CompareWithID() *string {
 }
 
 func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
-	/*
-		if s.VPC == nil || s.VPC.ID == nil {
-			return nil, fmt.Errorf("error finding LoadBalancerListener, lack of VPCId")
-		}
-	*/
 	if s.VPC == nil || s.VPC.ID == nil {
 		glog.V(4).Infof("VPC / VPCId not found for %s, skipping Find", fi.StringValue(s.Name))
 		return nil, nil
 	}
+
 	cloud := c.Cloud.(aliup.ALICloud)
 	describeSecurityGroupsArgs := &ecs.DescribeSecurityGroupsArgs{
 		RegionId: common.Region(cloud.Region()),
@@ -74,6 +70,8 @@ func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
 	// Find the securityGroup match the name.
 	for _, securityGroup := range securityGroupList {
 		if securityGroup.SecurityGroupName == fi.StringValue(s.Name) {
+			glog.V(2).Infof("found matching SecurityGroup with name: %q", *s.Name)
+
 			actual.Name = fi.String(securityGroup.SecurityGroupName)
 			actual.SecurityGroupId = fi.String(securityGroup.SecurityGroupId)
 			// Ignore "system" fields
@@ -110,12 +108,10 @@ func (_ *SecurityGroup) CheckChanges(a, e, changes *SecurityGroup) error {
 }
 
 func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SecurityGroup) error {
-	/*
-		if e.VPC == nil || e.VPC.ID == nil {
-			return fmt.Errorf("error updating LoadBalancerListener, lack of VPCId")
-		}
-	*/
+
 	if a == nil {
+		glog.V(2).Infof("Creating SecurityGroup with Name:%q", fi.StringValue(e.Name))
+
 		createSecurityGroupArgs := &ecs.CreateSecurityGroupArgs{
 			RegionId:          common.Region(t.Cloud.Region()),
 			SecurityGroupName: fi.StringValue(e.Name),

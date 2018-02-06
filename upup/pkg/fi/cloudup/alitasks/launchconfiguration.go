@@ -28,7 +28,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=LaunchConfiguration
@@ -59,11 +59,7 @@ func (l *LaunchConfiguration) CompareWithID() *string {
 }
 
 func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) {
-	/*
-		if l.AutoscalingGroup == nil || l.AutoscalingGroup.ScalingGroupId == nil {
-			return nil, fmt.Errorf("error finding AutoscalingGroup, lack of ScalingGroupId")
-		}
-	*/
+
 	if l.AutoscalingGroup == nil || l.AutoscalingGroup.ScalingGroupId == nil {
 		glog.V(4).Infof("AutoscalingGroup / AutoscalingGroupId not found for %s, skipping Find", fi.StringValue(l.Name))
 		return nil, nil
@@ -91,6 +87,8 @@ func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) 
 	if len(configList) > 1 {
 		glog.V(4).Info("The number of specified ScalingConfigurations whith the same name and ScalingGroupId exceeds 1, diskName:%q", *l.Name)
 	}
+
+	glog.V(2).Infof("found matching LaunchConfiguration: %q", *l.Name)
 
 	actual := &LaunchConfiguration{}
 	actual.ImageId = fi.String(configList[0].ImageId)
@@ -138,6 +136,7 @@ func (l *LaunchConfiguration) Find(c *fi.Context) (*LaunchConfiguration, error) 
 }
 
 func (l *LaunchConfiguration) Run(c *fi.Context) error {
+	c.Cloud.(aliup.ALICloud).AddClusterTags(l.Tags)
 	return fi.DefaultDeltaRunMethod(l, c)
 }
 
@@ -167,14 +166,9 @@ func (_ *LaunchConfiguration) CheckChanges(a, e, changes *LaunchConfiguration) e
 }
 
 func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LaunchConfiguration) error {
-	/*
-		if e.AutoscalingGroup == nil || e.AutoscalingGroup.ScalingGroupId == nil {
-			return fmt.Errorf("error updating AutoscalingGroup, lack of ScalingGroupId")
-		}
-		if e.SecurityGroup == nil || e.SecurityGroup.SecurityGroupId == nil {
-			return fmt.Errorf("error updating AutoscalingGroup, lack of SecurityGroupId")
-		}
-	*/
+
+	glog.V(2).Infof("Creating LaunchConfiguration for AutoScalingGroup:%q", fi.StringValue(e.AutoscalingGroup.ScalingGroupId))
+
 	createScalingConfiguration := &ess.CreateScalingConfigurationArgs{
 		ScalingGroupId:      fi.StringValue(e.AutoscalingGroup.ScalingGroupId),
 		ImageId:             fi.StringValue(e.ImageId),
@@ -193,7 +187,6 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 		if err != nil {
 			return fmt.Errorf("error rendering AutoScalingLaunchConfiguration UserData: %v", err)
 		}
-		//userData := base64.StdEncoding.EncodeToString(d)
 		createScalingConfiguration.UserData = userData
 	}
 
@@ -218,6 +211,9 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 	// Disable ScalingGroup, used to bind scalingConfig, we should excute EnableScalingGroup in the task LaunchConfiguration
 	// If the ScalingGroup is active, we can not excute EnableScalingGroup.
 	if e.AutoscalingGroup.Active != nil && fi.BoolValue(e.AutoscalingGroup.Active) {
+
+		glog.V(2).Infof("Disabling LoadBalancer with id:%q", fi.StringValue(e.AutoscalingGroup.ScalingGroupId))
+
 		disableScalingGroupArgs := &ess.DisableScalingGroupArgs{
 			ScalingGroupId: fi.StringValue(e.AutoscalingGroup.ScalingGroupId),
 		}
@@ -233,10 +229,49 @@ func (_ *LaunchConfiguration) RenderALI(t *aliup.ALIAPITarget, a, e, changes *La
 		ActiveScalingConfigurationId: fi.StringValue(e.ConfigurationId),
 	}
 
+	glog.V(2).Infof("Enabling new LaunchConfiguration of LoadBalancer with id:%q", fi.StringValue(e.AutoscalingGroup.ScalingGroupId))
+
 	_, err = t.Cloud.EssClient().EnableScalingGroup(enableScalingGroupArgs)
 	if err != nil {
 		return fmt.Errorf("error enabling scalingGroup: %v", err)
 	}
 
 	return nil
+}
+
+type terraformLaunchConfiguration struct {
+	ImageID            *string `json:"image_id ,omitempty"`
+	InstanceType       *string `json:"instance_type,omitempty"`
+	SystemDiskCategory *string `json:"system_disk_category,omitempty"`
+	UserData           *string `json:"user_data,omitempty"`
+
+	RAMRole          *terraform.Literal `json:"role_name,omitempty"`
+	AutoscalingGroup *terraform.Literal `json:"scaling_group_id,omitempty"`
+	SSHKey           *terraform.Literal `json:"key_name,omitempty"`
+	SecurityGroup    *terraform.Literal `json:"security_group_id,omitempty"`
+}
+
+func (_ *LaunchConfiguration) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LaunchConfiguration) error {
+	userData, err := e.UserData.AsString()
+	if err != nil {
+		return fmt.Errorf("error rendering AutoScalingLaunchConfiguration UserData: %v", err)
+	}
+
+	tf := &terraformLaunchConfiguration{
+		ImageID:            e.ImageId,
+		InstanceType:       e.InstanceType,
+		SystemDiskCategory: e.SystemDiskCategory,
+		UserData:           &userData,
+
+		RAMRole:          e.RAMRole.TerraformLink(),
+		AutoscalingGroup: e.AutoscalingGroup.TerraformLink(),
+		SSHKey:           e.SSHKey.TerraformLink(),
+		SecurityGroup:    e.SecurityGroup.TerraformLink(),
+	}
+
+	return t.RenderResource("alicloud_ess_scaling_configuration", *e.Name, tf)
+}
+
+func (l *LaunchConfiguration) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ess_scaling_configuration", *l.Name, "id")
 }

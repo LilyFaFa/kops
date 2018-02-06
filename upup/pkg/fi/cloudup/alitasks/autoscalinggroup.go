@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
-	//	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
+	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
 //go:generate fitask -type=AutoscalingGroup
@@ -70,6 +70,8 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 		glog.V(4).Info("The number of specified scalingGroup whith the same name and ClusterTags exceeds 1, diskName:%q", *a.Name)
 	}
 
+	glog.V(2).Infof("found matching AutoscalingGroup with Name: %q", *a.Name)
+
 	actual := &AutoscalingGroup{}
 	actual.Name = fi.String(groupList[0].ScalingGroupName)
 	actual.MinSize = fi.Int(groupList[0].MinSize)
@@ -80,6 +82,7 @@ func (a *AutoscalingGroup) Find(c *fi.Context) (*AutoscalingGroup, error) {
 	actual.LoadBalancer = &LoadBalancer{
 		LoadbalancerId: fi.String(groupList[0].LoadBalancerId),
 	}
+
 	if len(groupList[0].VSwitchIds.VSwitchId) != 0 {
 		for _, vswitch := range groupList[0].VSwitchIds.VSwitchId {
 			v := &VSwitch{
@@ -153,7 +156,7 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	} else {
 		//only support to update size
 		if changes.MaxSize != nil || changes.MaxSize != nil {
-			glog.V(2).Infof("Modifing AutoscalingGroup' size, GroupName:%q", fi.StringValue(e.Name))
+			glog.V(2).Infof("Modifing AutoscalingGroup with Name:%q", fi.StringValue(e.Name))
 
 			modifyScalingGroupArgs := &ess.ModifyScalingGroupArgs{
 				ScalingGroupId: fi.StringValue(a.ScalingGroupId),
@@ -170,13 +173,13 @@ func (_ *AutoscalingGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Autos
 	return nil
 }
 
-/*
 type terraformAutoscalingGroup struct {
-	Name         *int                 `json:"scaling_group_name,omitempty"`
-	MaxSize      *int                 `json:"max_size,omitempty"`
-	MinSize      *int                 `json:"min_size,omitempty"`
+	Name    *string `json:"scaling_group_name,omitempty"`
+	MaxSize *int    `json:"max_size,omitempty"`
+	MinSize *int    `json:"min_size,omitempty"`
+
 	VSwitchs     []*terraform.Literal `json:"vswitch_ids,omitempty"`
-	LoadBalancer []*terraform.Literal `json:"vswitch_ids,omitempty"`
+	LoadBalancer []*terraform.Literal `json:"loadbalancer_ids,omitempty"`
 }
 
 func (_ *AutoscalingGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *AutoscalingGroup) error {
@@ -186,54 +189,17 @@ func (_ *AutoscalingGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, c
 		MaxSize: e.MaxSize,
 	}
 
-	for _, s := range e.VSwitchs {
-		tf.VSwitchs = append(tf.VPCZoneIdentifier, s.TerraformLink())
-	}
-
-	tags := e.buildTags(t.Cloud)
-	// Make sure we output in a stable order
-	var tagKeys []string
-	for k := range tags {
-		tagKeys = append(tagKeys, k)
-	}
-	sort.Strings(tagKeys)
-	for _, k := range tagKeys {
-		v := tags[k]
-		tf.Tags = append(tf.Tags, &terraformASGTag{
-			Key:               fi.String(k),
-			Value:             fi.String(v),
-			PropagateAtLaunch: fi.Bool(true),
-		})
-	}
-
-	if e.LaunchConfiguration != nil {
-		// Create TF output variable with security group ids
-		// This is in the launch configuration, but the ASG has the information about the instance group type
-
-		role := ""
-		for k := range e.Tags {
-			if strings.HasPrefix(k, CloudTagInstanceGroupRolePrefix) {
-				suffix := strings.TrimPrefix(k, CloudTagInstanceGroupRolePrefix)
-				if role != "" && role != suffix {
-					return fmt.Errorf("Found multiple role tags: %q vs %q", role, suffix)
-				}
-				role = suffix
-			}
-		}
-
-		if role != "" {
-			for _, sg := range e.LaunchConfiguration.SecurityGroups {
-				t.AddOutputVariableArray(role+"_security_group_ids", sg.TerraformLink())
-			}
-		}
-
-		if role == "node" {
-			for _, s := range e.Subnets {
-				t.AddOutputVariableArray(role+"_subnet_ids", s.TerraformLink())
-			}
+	if len(e.VSwitchs) != 0 {
+		for _, s := range e.VSwitchs {
+			tf.VSwitchs = append(tf.VSwitchs, s.TerraformLink())
 		}
 	}
 
-	return t.RenderResource("aws_autoscaling_group", *e.Name, tf)
+	tf.LoadBalancer = append(tf.LoadBalancer, e.LoadBalancer.TerraformLink())
+
+	return t.RenderResource("alicloud_ess_scaling_group", *e.Name, tf)
 }
-*/
+
+func (a *AutoscalingGroup) TerraformLink() *terraform.Literal {
+	return terraform.LiteralProperty("alicloud_ess_scaling_group", *a.Name, "id")
+}
