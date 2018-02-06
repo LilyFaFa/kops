@@ -30,12 +30,14 @@ import (
 )
 
 //go:generate fitask -type=SecurityGroup
+const SecurityResource = "securitygroup"
 
 type SecurityGroup struct {
 	Name            *string
 	SecurityGroupId *string
 	Lifecycle       *fi.Lifecycle
 	VPC             *VPC
+	Tags            map[string]string
 }
 
 var _ fi.CompareWithID = &SecurityGroup{}
@@ -67,24 +69,52 @@ func (s *SecurityGroup) Find(c *fi.Context) (*SecurityGroup, error) {
 	}
 
 	actual := &SecurityGroup{}
-	// Find the securityGroup match the name.
+	securityGroups := []ecs.SecurityGroupItemType{}
+
+	// Find the securityGroup match the name and tags
 	for _, securityGroup := range securityGroupList {
 		if securityGroup.SecurityGroupName == fi.StringValue(s.Name) {
-			glog.V(2).Infof("found matching SecurityGroup with name: %q", *s.Name)
+			securityGroups = append(securityGroups, securityGroup)
+		}
+	}
 
+	for _, securityGroup := range securityGroups {
+		resourceType := SecurityResource
+		find := true
+		tags, err := cloud.GetTags(securityGroup.SecurityGroupId, resourceType)
+		if err != nil {
+			return nil, fmt.Errorf("err finding SecurityGroups,%v", err)
+		}
+
+		if s.Tags != nil {
+			for key, value := range s.Tags {
+				if v, ok := tags[key]; !ok || v != value {
+					find = false
+				}
+			}
+		}
+
+		if find {
+			glog.V(2).Infof("found matching SecurityGroup with name: %q", *s.Name)
 			actual.Name = fi.String(securityGroup.SecurityGroupName)
 			actual.SecurityGroupId = fi.String(securityGroup.SecurityGroupId)
 			// Ignore "system" fields
 			actual.Lifecycle = s.Lifecycle
 			actual.VPC = s.VPC
+			actual.Tags = tags
 			s.SecurityGroupId = actual.SecurityGroupId
 			return actual, nil
 		}
 	}
+
 	return nil, nil
 }
 
 func (s *SecurityGroup) Run(c *fi.Context) error {
+	if s.Tags == nil {
+		s.Tags = make(map[string]string)
+	}
+	c.Cloud.(aliup.ALICloud).AddClusterTags(s.Tags)
 	return fi.DefaultDeltaRunMethod(s, c)
 }
 
@@ -125,7 +155,36 @@ func (_ *SecurityGroup) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Security
 		e.SecurityGroupId = fi.String(securityGroupId)
 	}
 
+	resourceType := SecurityResource
+	if changes != nil && changes.Tags != nil {
+		if err := t.Cloud.CreateTags(*e.SecurityGroupId, resourceType, e.Tags); err != nil {
+			return fmt.Errorf("error adding Tags to securityGroup: %v", err)
+		}
+	}
+
+	if a != nil && (len(a.Tags) > 0) {
+		glog.V(2).Infof("Modifing SecurityGroup with Name:%q", fi.StringValue(e.Name))
+
+		tagsToDelete := e.getGroupTagsToDelete(a.Tags)
+		if len(tagsToDelete) > 0 {
+			if err := t.Cloud.RemoveTags(*e.SecurityGroupId, resourceType, tagsToDelete); err != nil {
+				return fmt.Errorf("error removing Tags from ALI YunPan: %v", err)
+			}
+		}
+	}
+
 	return nil
+}
+
+func (s *SecurityGroup) getGroupTagsToDelete(currentTags map[string]string) map[string]string {
+	tagsToDelete := map[string]string{}
+	for k, v := range currentTags {
+		if _, ok := s.Tags[k]; !ok {
+			tagsToDelete[k] = v
+		}
+	}
+
+	return tagsToDelete
 }
 
 type terraformSecurityGroup struct {

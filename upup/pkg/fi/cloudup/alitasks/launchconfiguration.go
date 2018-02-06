@@ -252,10 +252,12 @@ type terraformLaunchConfiguration struct {
 }
 
 func (_ *LaunchConfiguration) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *LaunchConfiguration) error {
-	userData, err := e.UserData.AsString()
+	data, err := e.UserData.AsBytes()
 	if err != nil {
 		return fmt.Errorf("error rendering AutoScalingLaunchConfiguration UserData: %v", err)
 	}
+
+	userData := base64.StdEncoding.EncodeToString(data)
 
 	tf := &terraformLaunchConfiguration{
 		ImageID:            e.ImageId,

@@ -53,12 +53,9 @@ func (b *NetWorkModelBuilder) Build(c *fi.ModelBuilderContext) error {
 	for i := range b.Cluster.Spec.Subnets {
 		subnetSpec := &b.Cluster.Spec.Subnets[i]
 
-		//subnetName := subnetSpec.Name + "." + b.ClusterName()
-
 		vswitch := &alitasks.VSwitch{
 			Name:      s(b.GetNameForVSwitch(subnetSpec.Name)),
 			Lifecycle: b.Lifecycle,
-			//VPC:       vpc,
 			VPC:       b.LinkToVPC(),
 			ZoneId:    s(subnetSpec.Zone),
 			CidrBlock: s(subnetSpec.CIDR),
