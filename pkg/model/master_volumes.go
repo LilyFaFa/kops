@@ -249,6 +249,8 @@ func (b *MasterVolumeBuilder) addOpenstackVolume(c *fi.ModelBuilderContext, name
 }
 
 func (b *MasterVolumeBuilder) addALIVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd *kops.EtcdClusterSpec, m *kops.EtcdMemberSpec, allMembers []string) {
+	//Alicloud does not support volumeName starts with number
+	name = "v" + name
 	volumeType := fi.StringValue(m.VolumeType)
 	if volumeType == "" {
 		volumeType = DefaultALIEtcdVolumeType

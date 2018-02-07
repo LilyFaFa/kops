@@ -88,6 +88,7 @@ func (l *LoadBalancer) Find(c *fi.Context) (*LoadBalancer, error) {
 		glog.V(4).Info("Error getting tags on loadbalancerID:%q", *actual.LoadbalancerId)
 	}
 	if len(tags) != 0 {
+		actual.Tags = make(map[string]string)
 		for _, tag := range tags {
 			key := tag.TagKey
 			value := tag.TagValue
@@ -128,6 +129,9 @@ func (l *LoadBalancer) FindIPAddress(context *fi.Context) (*string, error) {
 }
 
 func (l *LoadBalancer) Run(c *fi.Context) error {
+	if l.Tags == nil {
+		l.Tags = make(map[string]string)
+	}
 	c.Cloud.(aliup.ALICloud).AddClusterTags(l.Tags)
 	return fi.DefaultDeltaRunMethod(l, c)
 }
@@ -169,7 +173,7 @@ func (_ *LoadBalancer) RenderALI(t *aliup.ALIAPITarget, a, e, changes *LoadBalan
 		e.LoadBalancerAddress = fi.String(response.Address)
 	}
 
-	if changes.Tags != nil {
+	if changes != nil && changes.Tags != nil {
 		tagItems := e.jsonMarshalTags(e.Tags)
 		addTagsArgs := &slb.AddTagsArgs{
 			RegionId:       common.Region(t.Cloud.Region()),

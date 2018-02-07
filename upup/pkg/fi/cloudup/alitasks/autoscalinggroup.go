@@ -195,7 +195,9 @@ func (_ *AutoscalingGroup) RenderTerraform(t *terraform.TerraformTarget, a, e, c
 		}
 	}
 
-	tf.LoadBalancer = append(tf.LoadBalancer, e.LoadBalancer.TerraformLink())
+	if e.LoadBalancer != nil {
+		tf.LoadBalancer = append(tf.LoadBalancer, e.LoadBalancer.TerraformLink())
+	}
 
 	return t.RenderResource("alicloud_ess_scaling_group", *e.Name, tf)
 }

@@ -581,6 +581,7 @@ func (c *ApplyClusterCmd) Run() error {
 					KopsModelContext: modelContext,
 				}
 				l.Builders = append(l.Builders,
+					&model.MasterVolumeBuilder{KopsModelContext: modelContext, Lifecycle: &clusterLifecycle},
 					&alimodel.APILoadBalancerModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
 					&alimodel.NetWorkModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
 					&alimodel.RAMModelBuilder{ALIModelContext: aliModelContext, Lifecycle: &clusterLifecycle},
