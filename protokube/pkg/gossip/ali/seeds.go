@@ -31,27 +31,38 @@ type SeedProvider struct {
 var _ gossip.SeedProvider = &SeedProvider{}
 
 func (p *SeedProvider) GetSeeds() ([]string, error) {
+	var seeds []string
+
+	// We could query at most 50 instances at a time on Aliyun ECS
+	maxPageSize := 50
 	args := &ecs.DescribeInstancesArgs{
 		// TODO: pending? starting?
 		Status:   ecs.Running,
 		RegionId: common.Region(p.region),
-		// TODO: Number limit
 		Pagination: common.Pagination{
-			PageNumber: 100,
-			PageSize:   100,
+			PageNumber: 1,
+			PageSize:   maxPageSize,
 		},
 		Tag: p.tag,
 	}
 
-	var seeds []string
-	resp, _, err := p.ecs.DescribeInstances(args)
-	if err != nil {
-		return nil, err
+	var instances []ecs.InstanceAttributesType
+	for {
+		resp, page, err := p.ecs.DescribeInstances(args)
+		if err != nil {
+			return nil, err
+		}
+		instances = append(instances, resp...)
+
+		if page.NextPage() == nil {
+			break
+		}
+		args.Pagination = *(page.NextPage())
 	}
 
-	for _, instance := range resp {
+	for _, instance := range instances {
 		// TODO: Multiple IP addresses?
-		for _, ip := range instance.InnerIpAddress.IpAddress {
+		for _, ip := range instance.VpcAttributes.PrivateIpAddress.IpAddress {
 			seeds = append(seeds, ip)
 		}
 	}
