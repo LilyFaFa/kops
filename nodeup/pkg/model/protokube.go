@@ -369,12 +369,10 @@ func (t *ProtokubeBuilder) ProtokubeEnvironmentVariables() string {
 	}
 	if os.Getenv("ALIYUN_ACCESS_KEY_ID") != "" {
 		buffer.WriteString(" ")
-		buffer.WriteString("-e ALIYUN_ACCESS_KEY_ID=")
-		buffer.WriteString("'")
+		buffer.WriteString("-e 'ALIYUN_ACCESS_KEY_ID=")
 		buffer.WriteString(os.Getenv("ALIYUN_ACCESS_KEY_ID"))
 		buffer.WriteString("'")
-		buffer.WriteString(" -e ALIYUN_ACCESS_KEY_SECRET=")
-		buffer.WriteString("'")
+		buffer.WriteString(" -e 'ALIYUN_ACCESS_KEY_SECRET=")
 		buffer.WriteString(os.Getenv("ALIYUN_ACCESS_KEY_SECRET"))
 		buffer.WriteString("'")
 		buffer.WriteString(" ")
