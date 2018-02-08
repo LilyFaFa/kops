@@ -209,22 +209,32 @@ func (a *ALIVolumes) FindVolumes() ([]*Volume, error) {
 
 	var volumes []*Volume
 
-	var tags map[string]string
+	var disks []ecs.DiskItemType
+	// We could query at most 50 disks at a time on Aliyun ECS
+	maxPageSize := 50
+	tags := make(map[string]string)
 	tags[aliup.TagClusterName] = a.clusterTag
 	tags[aliup.TagNameRolePrefix+"master"] = "1"
 	args := &ecs.DescribeDisksArgs{
 		RegionId: common.Region(a.region),
 		ZoneId:   a.zone,
 		Tag:      tags,
-		// TODO: Number limit?
 		Pagination: common.Pagination{
-			PageNumber: 100,
-			PageSize:   100,
+			PageNumber: 1,
+			PageSize:   maxPageSize,
 		},
 	}
-	disks, _, err := a.client.DescribeDisks(args)
-	if err != nil {
-		return nil, fmt.Errorf("error querying Aliyun disks: %v", err)
+	for {
+		resp, page, err := a.client.DescribeDisks(args)
+		if err != nil {
+			return nil, fmt.Errorf("error querying Aliyun disks: %v", err)
+		}
+		disks = append(disks, resp...)
+
+		if page.NextPage() == nil {
+			break
+		}
+		args.Pagination = *(page.NextPage())
 	}
 
 	for _, disk := range disks {
