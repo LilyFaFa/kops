@@ -106,7 +106,7 @@ func (c *ALIModelContext) LinkToSSHKey() *alitasks.SSHKey {
 }
 
 func (c *ALIModelContext) GetNameForSSHKey() string {
-	return "k8s.sshkey" + c.ClusterName()
+	return "k8s.sshkey." + c.ClusterName()
 }
 
 func (c *ALIModelContext) GetAutoscalingGroupName(ig *kops.InstanceGroup) string {
