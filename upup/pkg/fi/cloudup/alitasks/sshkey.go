@@ -87,7 +87,7 @@ func (s *SSHKey) CheckChanges(a, e, changes *SSHKey) error {
 	return nil
 }
 
-func (_ *SSHKey) RenderAWS(t *aliup.ALIAPITarget, a, e, changes *SSHKey) error {
+func (_ *SSHKey) RenderALI(t *aliup.ALIAPITarget, a, e, changes *SSHKey) error {
 	if a == nil {
 		glog.V(2).Infof("Creating SSHKey with Name:%q", fi.StringValue(e.Name))
 
