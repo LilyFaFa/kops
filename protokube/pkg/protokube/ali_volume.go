@@ -192,7 +192,7 @@ func (a *ALIVolumes) AttachVolume(volume *Volume) error {
 			DiskIds:  []string{volume.ID},
 		}
 		disks, _, err := a.client.DescribeDisks(args)
-		if err != nil || len(disks) != 0 {
+		if err != nil || len(disks) == 0 {
 			return fmt.Errorf("error querying Aliyun disk %q: %v", volume.ID, err)
 		}
 
