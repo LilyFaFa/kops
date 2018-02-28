@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	//"time"
 
 	"github.com/golang/glog"
 
@@ -70,8 +69,8 @@ func ListResourcesALI(aliCloud aliup.ALICloud, clusterName string, region string
 	}
 	d.autoScalingGroup = make(map[string]string)
 
-	//SecurityGroup should be deleted after AutoScalingGroup
-	//We listAutoScalingGroups first to get ListSecutityGroup's blocks
+	// SecurityGroup and VPC should be deleted after AutoScalingGroup.
+	// We list AutoScalingGroups first to configure dependencies' blocked parameter.
 	resourceTrackers, err := d.ListAutoScalingGroups()
 	if err != nil {
 		return nil, err
@@ -82,7 +81,6 @@ func ListResourcesALI(aliCloud aliup.ALICloud, clusterName string, region string
 	}
 
 	listFunctions := []aliListFn{
-		//d.ListAutoScalingGroups,
 		d.ListLoadBalancer,
 		d.ListRam,
 		d.ListSecurityGroup,
@@ -99,7 +97,6 @@ func ListResourcesALI(aliCloud aliup.ALICloud, clusterName string, region string
 		for _, t := range resourceTrackers {
 			resources[t.Type+":"+t.ID] = t
 		}
-		//time.Sleep(1 * time.Second)
 	}
 
 	for k, t := range resources {
@@ -120,37 +117,51 @@ func (d *clusterDiscoveryALI) ListAutoScalingGroups() ([]*resources.Resource, er
 		"nodes." + d.clusterName,
 		"bastions." + d.clusterName,
 	}
+	pageNumber := 1
+	pageSize := 50
 
-	describeScalingGroupsArgs := &ess.DescribeScalingGroupsArgs{
-		RegionId: common.Region(d.aliCloud.Region()),
-	}
-	groups, _, err := d.aliCloud.EssClient().DescribeScalingGroups(describeScalingGroupsArgs)
+	for {
+		describeScalingGroupsArgs := &ess.DescribeScalingGroupsArgs{
+			RegionId: common.Region(d.aliCloud.Region()),
+			Pagination: common.Pagination{
+				PageNumber: pageNumber,
+				PageSize:   pageSize,
+			},
+		}
+		groups, _, err := d.aliCloud.EssClient().DescribeScalingGroups(describeScalingGroupsArgs)
 
-	if err != nil {
-		return nil, fmt.Errorf("error listing ScalingGroup: %v", err)
-	}
+		if err != nil {
+			return nil, fmt.Errorf("error listing ScalingGroup: %v", err)
+		}
 
-	scalingGroups := []ess.ScalingGroupItemType{}
+		scalingGroups := []ess.ScalingGroupItemType{}
 
-	for _, group := range groups {
-		for _, r := range remove {
-			if strings.Contains(group.ScalingGroupName, r) {
-				scalingGroups = append(scalingGroups, group)
+		for _, group := range groups {
+			for _, r := range remove {
+				if strings.Contains(group.ScalingGroupName, r) {
+					scalingGroups = append(scalingGroups, group)
+				}
 			}
 		}
-	}
 
-	for _, scalingGroup := range scalingGroups {
+		for _, scalingGroup := range scalingGroups {
 
-		resourceTracker := &resources.Resource{
-			Name:    scalingGroup.ScalingGroupName,
-			ID:      scalingGroup.ScalingGroupId,
-			Type:    typeAutoScalingGroup,
-			Deleter: DeleteAutoScalingGroup,
+			resourceTracker := &resources.Resource{
+				Name:    scalingGroup.ScalingGroupName,
+				ID:      scalingGroup.ScalingGroupId,
+				Type:    typeAutoScalingGroup,
+				Deleter: DeleteAutoScalingGroup,
+			}
+
+			d.autoScalingGroup[scalingGroup.ScalingGroupName] = scalingGroup.ScalingGroupId
+			resourceTrackers = append(resourceTrackers, resourceTracker)
 		}
 
-		d.autoScalingGroup[scalingGroup.ScalingGroupName] = scalingGroup.ScalingGroupId
-		resourceTrackers = append(resourceTrackers, resourceTracker)
+		if len(groups) < pageSize {
+			break
+		} else {
+			pageNumber++
+		}
 	}
 
 	return resourceTrackers, nil
@@ -158,6 +169,7 @@ func (d *clusterDiscoveryALI) ListAutoScalingGroups() ([]*resources.Resource, er
 
 func DeleteAutoScalingGroup(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
+	glog.V(2).Infof("Removing AutoScalingGroup with Id %s", r.ID)
 
 	// Force to delete the AutoScalingGroup
 	// TODO: Should we delete the group softly? Like set ForceDelete to false.
@@ -217,6 +229,8 @@ func (d *clusterDiscoveryALI) ListLoadBalancer() ([]*resources.Resource, error) 
 
 func DeleteLoadBalancer(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
+	glog.V(2).Infof("Removing LoadBalancer with Id %s", r.ID)
+
 	err := c.SlbClient().DeleteLoadBalancer(r.ID)
 	if err != nil {
 		return fmt.Errorf("err deleting LoadBalancer:%v", err)
@@ -318,6 +332,8 @@ func (d *clusterDiscoveryALI) ListSecurityGroup() ([]*resources.Resource, error)
 func DeleteSecurityGroup(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
 	region := common.Region(c.Region())
+	glog.V(2).Infof("Removing SecurityGroup with Id %s", r.ID)
+
 	err := c.EcsClient().DeleteSecurityGroup(region, r.ID)
 	if err != nil {
 		return fmt.Errorf("err deleting securityGroup:%v", err)
@@ -329,9 +345,10 @@ func DeleteSecurityGroupRole(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
 	permission := r.Obj.(ecs.PermissionType)
 
+	glog.V(2).Infof("Removing SecurityGroupRole of SecurityGroup %s", r.Name)
+
 	if permission.Direction == "ingress" {
 		authorizeSecurityGroupArgs := ecs.AuthorizeSecurityGroupArgs{
-			//SecurityGroupId:         permission.DestGroupId,
 			SecurityGroupId:         r.Name,
 			RegionId:                common.Region(c.Region()),
 			IpProtocol:              permission.IpProtocol,
@@ -356,7 +373,6 @@ func DeleteSecurityGroupRole(cloud fi.Cloud, r *resources.Resource) error {
 
 	if permission.Direction == "egress" {
 		authorizeSecurityGroupEgressArgs := ecs.AuthorizeSecurityGroupEgressArgs{
-			//SecurityGroupId:       permission.SourceGroupId,
 			SecurityGroupId:       r.Name,
 			RegionId:              common.Region(c.Region()),
 			IpProtocol:            permission.IpProtocol,
@@ -424,6 +440,8 @@ func DeleteRoleRam(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
 	policies := []string{}
 
+	glog.V(2).Infof("Removing RamRole  %s", r.Name)
+
 	roleQueryRequest := ram.RoleQueryRequest{
 		RoleName: r.Name,
 	}
@@ -439,6 +457,8 @@ func DeleteRoleRam(cloud fi.Cloud, r *resources.Resource) error {
 	}
 
 	for _, policy := range policies {
+		glog.V(2).Infof("Removing RolePolicy %s of RamRole %s", policy, r.Name)
+
 		policyRequest := ram.PolicyRequest{
 			PolicyName: policy,
 			PolicyType: ram.Custom,
@@ -484,6 +504,8 @@ func (d *clusterDiscoveryALI) ListSSHKey() ([]*resources.Resource, error) {
 func DeleteSSHKey(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
 	region := common.Region(c.Region())
+	glog.V(2).Infof("Removing SSHKsy %s", r.Name)
+
 	deleteKeyPairsArgs := &ecs.DeleteKeyPairsArgs{
 		RegionId: region,
 	}
@@ -502,15 +524,15 @@ func DeleteSSHKey(cloud fi.Cloud, r *resources.Resource) error {
 func (d *clusterDiscoveryALI) ListVPC() ([]*resources.Resource, error) {
 	var resourceTrackers []*resources.Resource
 
-	// Delete VPC with specified name. All of the Switchs will be deleted
+	// Delete VPC with specified name. All of the Switchs will be deleted.
+	// We think the VPC which owns the designated name is owned.
 	name := d.clusterName
 	vpcsToDelete := []string{}
 	vswitchsToDelete := []string{}
 
 	pageNumber := 1
 	pageSize := 50
-	query := true
-	for query == true {
+	for {
 		describeVpcsArgs := &ecs.DescribeVpcsArgs{
 			RegionId: common.Region(d.aliCloud.Region()),
 			Pagination: common.Pagination{
@@ -575,6 +597,8 @@ func (d *clusterDiscoveryALI) ListVPC() ([]*resources.Resource, error) {
 
 func DeleteVswitch(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
+	glog.V(2).Infof("Removing Vswitch with Id %s", r.ID)
+
 	err := c.EcsClient().DeleteVSwitch(r.ID)
 	if err != nil {
 		return fmt.Errorf("err deleting Vswitch:%v", err)
@@ -584,6 +608,8 @@ func DeleteVswitch(cloud fi.Cloud, r *resources.Resource) error {
 
 func DeleteVPC(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
+	glog.V(2).Infof("Removing VPC with Id %s", r.ID)
+
 	err := c.EcsClient().DeleteVpc(r.ID)
 	if err != nil {
 		return fmt.Errorf("err deleting VPC:%v", err)
@@ -600,8 +626,7 @@ func (d *clusterDiscoveryALI) ListVolume() ([]*resources.Resource, error) {
 
 	pageNumber := 1
 	pageSize := 50
-	query := true
-	for query == true {
+	for {
 		describeDisksArgs := &ecs.DescribeDisksArgs{
 			RegionId: common.Region(d.aliCloud.Region()),
 			Tag:      tags,
@@ -650,6 +675,8 @@ func (d *clusterDiscoveryALI) ListVolume() ([]*resources.Resource, error) {
 
 func DeleteVolume(cloud fi.Cloud, r *resources.Resource) error {
 	c := cloud.(aliup.ALICloud)
+	glog.V(2).Infof("Removing Disk with Id %s", r.ID)
+
 	err := c.EcsClient().DeleteDisk(r.ID)
 	if err != nil {
 		return fmt.Errorf("err deleting volume:%v", err)
