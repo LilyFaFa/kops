@@ -38,7 +38,7 @@ type ModifyInstanceNetworkSpec struct {
 	InstanceId              string
 	InternetMaxBandwidthOut *int
 	InternetMaxBandwidthIn  *int
-	NetworkChargeType common.InternetChargeType
+	NetworkChargeType       common.InternetChargeType
 }
 
 type ModifyInstanceNetworkSpecResponse struct {
@@ -88,9 +88,10 @@ type EipInstanceType string
 const (
 	EcsInstance = "EcsInstance"
 	SlbInstance = "SlbInstance"
-	Nat = "Nat"
-	HaVip = "HaVip"
+	Nat         = "Nat"
+	HaVip       = "HaVip"
 )
+
 type AssociateEipAddressArgs struct {
 	AllocationId string
 	InstanceId   string
@@ -128,11 +129,22 @@ const (
 	EipStatusAvailable     = EipStatus("Available")
 )
 
+type AssociatedInstanceType string
+
+const (
+	AssociatedInstanceTypeEcsInstance = AssociatedInstanceType("EcsInstance")
+	AssociatedInstanceTypeSlbInstance = AssociatedInstanceType("SlbInstance")
+	AssociatedInstanceTypeNat         = AssociatedInstanceType("Nat")
+	AssociatedInstanceTypeHaVip       = AssociatedInstanceType("HaVip")
+)
+
 type DescribeEipAddressesArgs struct {
-	RegionId     common.Region
-	Status       EipStatus //enum Associating | Unassociating | InUse | Available
-	EipAddress   string
-	AllocationId string
+	RegionId               common.Region
+	Status                 EipStatus //enum Associating | Unassociating | InUse | Available
+	EipAddress             string
+	AllocationId           string
+	AssociatedInstanceType AssociatedInstanceType //enum EcsInstance | SlbInstance | Nat | HaVip
+	AssociatedInstanceId   string                 //绑定的资源的Id。 这是一个过滤器性质的参数，若不指定，则表示不适用该条件对结果进行过滤。 如果要使用该过滤器，必须同时使用AssociatedInstanceType。若InstanceType为EcsInstance，则此处填写ECS实例Id。若InstanceType为SlbInstance，则此处填写VPC类型的私网SLB 的实例ID。若InstanceType为Nat，则此处填写NAT 的实例ID。。若InstanceType为HaVip，则此处填写HaVipId。
 	common.Pagination
 }
 
