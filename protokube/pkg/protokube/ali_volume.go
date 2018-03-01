@@ -300,6 +300,15 @@ func (a *ALIVolumes) FindMountedVolume(volume *Volume) (string, error) {
 		return device, nil
 	}
 	if os.IsNotExist(err) {
+		if strings.HasPrefix(device, "/dev/xvd") {
+			device = "/dev/vd" + strings.TrimPrefix(device, "/dev/xvd")
+			_, err = os.Stat(pathFor(device))
+			return device, err
+		} else if strings.HasPrefix(device, "/dev/vd") {
+			device = "/dev/xvd" + strings.TrimPrefix(device, "/dev/vd")
+			_, err = os.Stat(pathFor(device))
+			return device, err
+		}
 		return "", nil
 	}
 	return "", fmt.Errorf("error checking for device %q: %v", device, err)

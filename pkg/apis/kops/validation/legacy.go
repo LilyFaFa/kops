@@ -305,7 +305,7 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 		case kops.CloudProviderOpenstack:
 			k8sCloudProvider = "openstack"
 		case kops.CloudProviderALI:
-			k8sCloudProvider = "alicloud"
+			k8sCloudProvider = ""
 		default:
 			return field.Invalid(fieldSpec.Child("CloudProvider"), c.Spec.CloudProvider, "unknown cloudprovider")
 		}
