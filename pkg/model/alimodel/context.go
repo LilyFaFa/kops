@@ -117,9 +117,9 @@ func (c *ALIModelContext) GetAutoscalingGroupName(ig *kops.InstanceGroup) string
 		// should be redundant...
 		return ig.ObjectMeta.Name[len(ig.ObjectMeta.Name)-3:] + ".masters." + c.ClusterName()
 	case kops.InstanceGroupRoleNode:
-		return "node." + c.ClusterName()
+		return "nodes." + c.ClusterName()
 	case kops.InstanceGroupRoleBastion:
-		return "bastion." + c.ClusterName()
+		return "bastions." + c.ClusterName()
 
 	default:
 		glog.Fatalf("unknown InstanceGroup Role: %v", ig.Spec.Role)
