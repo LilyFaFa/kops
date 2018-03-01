@@ -61,7 +61,7 @@ func (d *Disk) Find(c *fi.Context) (*Disk, error) {
 		RegionId: common.Region(cloud.Region()),
 		ZoneId:   fi.StringValue(d.ZoneId),
 		Tag:      clusterTags,
-		Name:     fi.StringValue(d.Name),
+		DiskName: fi.StringValue(d.Name),
 	}
 
 	responseDisks, _, err := cloud.EcsClient().DescribeDisks(request)
@@ -146,16 +146,17 @@ func (_ *Disk) RenderALI(t *aliup.ALIAPITarget, a, e, changes *Disk) error {
 
 	resourceType := DiskResource
 	if changes != nil && changes.Tags != nil {
+		glog.V(2).Infof("Modifing tags of disk with Name:%q", fi.StringValue(e.Name))
 		if err := t.Cloud.CreateTags(*e.DiskId, resourceType, e.Tags); err != nil {
 			return fmt.Errorf("error adding Tags to ALI YunPan: %v", err)
 		}
 	}
 
 	if a != nil && (len(a.Tags) > 0) {
-		glog.V(2).Infof("Modifing Disk with Name:%q", fi.StringValue(e.Name))
 
 		tagsToDelete := e.getDiskTagsToDelete(a.Tags)
 		if len(tagsToDelete) > 0 {
+			glog.V(2).Infof("Deleting tags of disk with Name:%q", fi.StringValue(e.Name))
 			if err := t.Cloud.RemoveTags(*e.DiskId, resourceType, tagsToDelete); err != nil {
 				return fmt.Errorf("error removing Tags from ALI YunPan: %v", err)
 			}
