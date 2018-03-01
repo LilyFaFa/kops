@@ -180,7 +180,7 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 	}
 
 	if cloudProvider == kops.CloudProviderALI {
-		clusterSpec.Kubelet.CloudProvider = "external"
+		clusterSpec.Kubelet.CloudProvider = ""
 	}
 
 	if clusterSpec.ExternalCloudControllerManager != nil {

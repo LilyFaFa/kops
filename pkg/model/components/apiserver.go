@@ -118,7 +118,7 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	case kops.CloudProviderOpenstack:
 		c.CloudProvider = "openstack"
 	case kops.CloudProviderALI:
-		c.CloudProvider = "external"
+		c.CloudProvider = ""
 	default:
 		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.CloudProvider)
 	}
