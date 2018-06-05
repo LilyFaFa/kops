@@ -89,6 +89,9 @@ func (s *cloudDiscoveryStatusStore) FindClusterStatus(cluster *kops.Cluster) (*k
 	if awsCloud, ok := cloud.(awsup.AWSCloud); ok {
 		return awsCloud.FindClusterStatus(cluster)
 	}
-
+        
+        if aliCloud, ok := cloud.(aliup.ALICloud); ok {
+		return aliCloud.FindClusterStatus(cluster)
+	}
 	return nil, fmt.Errorf("Etcd Status not implemented for %T", cloud)
 }

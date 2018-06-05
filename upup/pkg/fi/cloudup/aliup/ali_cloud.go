@@ -30,7 +30,7 @@ import (
 	ram "github.com/denverdino/aliyungo/ram"
 	slb "github.com/denverdino/aliyungo/slb"
 
-	"k8s.io/api/core/v1"
+//	"k8s.io/api/core/v1"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/cloudinstances"
@@ -40,6 +40,7 @@ import (
 const TagClusterName = "KubernetesCluster"
 const TagNameRolePrefix = "k8s.io/role/"
 const TagNameEtcdClusterPrefix = "k8s.io/etcd/"
+const TagRoleMaster = "master"
 
 type ALICloud interface {
 	fi.Cloud
@@ -56,6 +57,7 @@ type ALICloud interface {
 	RemoveTags(resourceId string, resourceType string, tags map[string]string) error
 	GetClusterTags() map[string]string
 	GetApiIngressStatus(cluster *kops.Cluster) ([]kops.ApiIngressStatus, error)
+        FindClusterStatus(cluster *kops.Cluster) (*kops.ClusterStatus, error)
 }
 
 type aliCloudImplementation struct {
@@ -175,9 +177,11 @@ func (c *aliCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 
 }
 
+/*
 func (c *aliCloudImplementation) GetCloudGroups(cluster *kops.Cluster, instancegroups []*kops.InstanceGroup, warnUnmatched bool, nodes []v1.Node) (map[string]*cloudinstances.CloudInstanceGroup, error) {
 	return nil, fmt.Errorf("GetCloudGroups not implemented on aliCloud")
 }
+*/
 
 // GetTags will get the specified resource's tags.
 func (c *aliCloudImplementation) GetTags(resourceId string, resourceType string) (map[string]string, error) {

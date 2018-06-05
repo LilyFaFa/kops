@@ -27,7 +27,6 @@ import (
 	"text/template"
 
 	"github.com/ghodss/yaml"
-
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/model/resources"
@@ -86,6 +85,14 @@ func (b *BootstrapScript) ResourceNodeUp(ig *kops.InstanceGroup, cs *kops.Cluste
 			}
 			return ""
 		},
+		"OSSEnv": func() string {
+			if os.Getenv("ALIYUN_ACCESS_KEY_ID") != "" {
+				return fmt.Sprintf("export ALIYUN_ACCESS_KEY_ID=%s\nexport ALIYUN_ACCESS_KEY_SECRET=%s\n",
+					os.Getenv("ALIYUN_ACCESS_KEY_ID"),
+					os.Getenv("ALIYUN_ACCESS_KEY_SECRET"))
+			}
+                        return ""
+		},
 
 		"ProxyEnv": func() string {
 			return b.createProxyEnv(cs.EgressProxy)
@@ -94,6 +101,13 @@ func (b *BootstrapScript) ResourceNodeUp(ig *kops.InstanceGroup, cs *kops.Cluste
 			if os.Getenv("AWS_REGION") != "" {
 				return fmt.Sprintf("export AWS_REGION=%s\n",
 					os.Getenv("AWS_REGION"))
+			}
+			return ""
+		},
+		"OSS_REGION": func() string {
+			if os.Getenv("OSS_REGION") != "" {
+				return fmt.Sprintf("export OSS_REGION=%s\n",
+					os.Getenv("OSS_REGION"))
 			}
 			return ""
 		},
@@ -170,7 +184,7 @@ func (b *BootstrapScript) ResourceNodeUp(ig *kops.InstanceGroup, cs *kops.Cluste
 	if err != nil {
 		return nil, err
 	}
-
+	
 	templateResource, err := NewTemplateResource("nodeup", awsNodeUpTemplate, functions, nil)
 	if err != nil {
 		return nil, err
